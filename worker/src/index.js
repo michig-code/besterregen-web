@@ -33,6 +33,8 @@ export default {
         return json(await verifyCheck(request, env), 200, cors);
       if (url.pathname === "/logout") return logout(env);
       if (url.pathname === "/health") return json(await health(env), 200, cors);
+      if (url.pathname === "/verify/debug" && request.method === "POST")
+        return json(await verifyDebug(request, env), 200, cors);
       return json({ error: "not_found" }, 404, cors);
     } catch (err) {
       console.error(err);
@@ -341,4 +343,27 @@ async function health(env) {
     out.supabaseTableSessions = String(e.message || e);
   }
   return out;
+}
+
+// Debug: zeigt die rohe Antwort der GD-Server (nur für eingeloggte Nutzer)
+async function verifyDebug(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return { error: "not_logged_in" };
+  const res = await fetch(GD_COMMENTS, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      levelID: env.VERIFY_LEVEL_ID, page: "0", total: "0", secret: GD_SECRET, mode: "0", count: "100",
+    }),
+  });
+  const raw = await res.text();
+  const parts = raw.split("#");
+  return {
+    httpStatus: res.status,
+    length: raw.length,
+    rawHead: raw.slice(0, 1200),
+    sectionCount: parts.length,
+    userSectionHead: (parts[1] || "").slice(0, 600),
+    parsedComments: (await fetchLevelComments(env.VERIFY_LEVEL_ID)).length,
+  };
 }
