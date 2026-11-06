@@ -549,3 +549,19 @@ a.level-link .rank { min-height: 56px; height: auto; }
 
 .player-cell { display: flex; align-items: center; gap: 10px; }
 .player-cell img { border-radius: 50%; flex: none; border: 1px solid var(--panel-border); }
+
+/* ---------- Verwaltung: Mitglieder, Protokoll ---------- */
+.m-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.m-head h2 { margin: 0; }
+.letters { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.letters .chip-btn { padding: 5px 10px; font-size: .8rem; min-width: 34px; }
+.member-body .m-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.gd-tag { color: var(--green); font-weight: 600; }
+.chip-btn .x { margin-left: 4px; font-size: .8em; opacity: .85; }
+.chip-btn.on .x { color: #fff; }
+.audit-list { display: grid; gap: 8px; margin-top: 10px; }
+.audit-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,.02); }
+.audit-row .sign { font-weight: 900; width: 22px; text-align: center; }
+.audit-row.add .sign { color: var(--green); }
+.audit-row.remove .sign { color: #ff7a9c; }
+.audit-row small { display: block; color: var(--muted); margin-top: 2px; }

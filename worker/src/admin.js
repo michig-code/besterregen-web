@@ -73,6 +73,53 @@ export async function handleAdmin(request, url, env, ctx) {
     return ctx.json({ ok: true }, 200, ctx.cors);
   }
 
+  // Discord-Mitglieder synchronisieren (über den Bot)
+  if (path === "/admin/members/sync" && method === "POST") {
+    const count = await syncMembers(env);
+    return ctx.json({ ok: true, count }, 200, ctx.cors);
+  }
+
+  // Mitglieder alphabetisch, mit Suche und Buchstaben-Filter
+  if (path === "/admin/members" && method === "GET") {
+    const q = (url.searchParams.get("q") || "").trim();
+    const letter = (url.searchParams.get("letter") || "").trim();
+    const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0", 10) || 0);
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10) || 50));
+    if (q && !/^[\p{L}\p{N} ._-]{1,32}$/u.test(q)) return ctx.json({ error: "invalid_query" }, 400, ctx.cors);
+    let filter = "";
+    if (q) filter += `&name=ilike.*${encodeURIComponent(q)}*`;
+    if (/^[A-Za-z]$/.test(letter)) filter += `&name=ilike.${encodeURIComponent(letter.toUpperCase())}*`;
+    const rows = (await db(env, "GET",
+      `guild_members?select=discord_id,name,avatar&order=name.asc&limit=${limit + 1}&offset=${offset}${filter}`)) || [];
+    const hasMore = rows.length > limit;
+    const members = rows.slice(0, limit);
+    const ids = members.map((m) => m.discord_id);
+    let roleLinks = [], gdLinks = [];
+    if (ids.length) {
+      const inList = ids.map((i) => encodeURIComponent(i)).join(",");
+      roleLinks = (await db(env, "GET", `user_site_roles?discord_id=in.(${inList})&select=discord_id,role_id`)) || [];
+      gdLinks = (await db(env, "GET", `gd_links?discord_id=in.(${inList})&select=discord_id,gd_name`)) || [];
+    }
+    const latest = (await db(env, "GET", "guild_members?select=updated_at&order=updated_at.desc&limit=1"))?.[0];
+    return ctx.json({
+      members: members.map((m) => ({
+        ...m,
+        roleIds: roleLinks.filter((l) => l.discord_id === m.discord_id).map((l) => l.role_id),
+        gdName: gdLinks.find((g) => g.discord_id === m.discord_id)?.gd_name || null,
+      })),
+      hasMore,
+      total: await countMembers(env, filter),
+      lastSynced: latest?.updated_at || null,
+    }, 200, ctx.cors);
+  }
+
+  // Letzte Änderungen an Rollen
+  if (path === "/admin/audit" && method === "GET") {
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "30", 10) || 30));
+    const rows = (await db(env, "GET", `role_audit?select=*&order=created_at.desc&limit=${limit}`)) || [];
+    return ctx.json({ entries: rows }, 200, ctx.cors);
+  }
+
   // Mitglieder suchen
   if (path === "/admin/users" && method === "GET") {
     const q = (url.searchParams.get("q") || "").trim();
@@ -96,25 +143,93 @@ export async function handleAdmin(request, url, env, ctx) {
   if (assign && DISCORD_ID.test(assign[1]) && method === "POST") {
     const roleId = body?.roleId;
     if (!UUID.test(roleId || "")) return ctx.json({ error: "invalid_role" }, 400, ctx.cors);
-    const role = await db(env, "GET", `site_roles?id=eq.${roleId}&select=permissions`);
+    const role = await db(env, "GET", `site_roles?id=eq.${roleId}&select=name,permissions`);
     if (!role || !role[0]) return ctx.json({ error: "role_not_found" }, 404, ctx.cors);
     if (role[0].permissions.includes("admin") && !has(perms, "admin")) {
       return ctx.json({ error: "cannot_grant_admin" }, 403, ctx.cors);
     }
+    const gm = await db(env, "GET", `guild_members?discord_id=eq.${assign[1]}&select=name,avatar`).then((r) => r?.[0]).catch(() => null);
+    await db(env, "POST", "users", { discord_id: assign[1], name: gm?.name || "Mitglied", avatar: gm?.avatar || null }, {
+      prefer: "return=minimal,resolution=ignore-duplicates",
+    });
     await db(env, "POST", "user_site_roles", { discord_id: assign[1], role_id: roleId }, {
       prefer: "return=minimal,resolution=ignore-duplicates",
     });
+    await audit(env, session.discord_name, assign[1], gm?.name, role[0].name, "add").catch(() => {});
     return ctx.json({ ok: true }, 200, ctx.cors);
   }
   const unassign = path.match(/^\/admin\/users\/(\d{5,25})\/roles\/([0-9a-f-]{36})$/);
   if (unassign && DISCORD_ID.test(unassign[1]) && UUID.test(unassign[2]) && method === "DELETE") {
-    const role = await db(env, "GET", `site_roles?id=eq.${unassign[2]}&select=permissions`);
+    const role = await db(env, "GET", `site_roles?id=eq.${unassign[2]}&select=name,permissions`);
     if (role && role[0] && role[0].permissions.includes("admin") && !has(perms, "admin")) {
       return ctx.json({ error: "cannot_grant_admin" }, 403, ctx.cors);
     }
+    const gm = await db(env, "GET", `guild_members?discord_id=eq.${unassign[1]}&select=name`).then((r) => r?.[0]).catch(() => null);
     await db(env, "DELETE", `user_site_roles?discord_id=eq.${unassign[1]}&role_id=eq.${unassign[2]}`);
+    await audit(env, session.discord_name, unassign[1], gm?.name, role?.[0]?.name, "remove").catch(() => {});
     return ctx.json({ ok: true }, 200, ctx.cors);
   }
 
   return ctx.json({ error: "not_found" }, 404, ctx.cors);
+}
+
+// Anzahl der Mitglieder (gefiltert) über den Content-Range-Header
+async function countMembers(env, filter) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/guild_members?select=discord_id&limit=1${filter}`, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      Prefer: "count=exact",
+    },
+  });
+  const range = res.headers.get("content-range") || "";
+  const total = parseInt(range.split("/")[1], 10);
+  return Number.isFinite(total) ? total : 0;
+}
+
+// Protokoll: wer hat wem welche Rolle gegeben oder entzogen
+async function audit(env, actorName, targetId, targetName, roleName, action) {
+  await db(env, "POST", "role_audit", {
+    actor_name: actorName || null,
+    target_discord_id: targetId,
+    target_name: targetName || null,
+    role_name: roleName || null,
+    action,
+  });
+}
+
+// Mitgliederliste von Discord holen (über den Bot) und in die Datenbank schreiben
+export async function syncMembers(env) {
+  if (!env.DISCORD_BOT_TOKEN) throw new Error("bot_token_missing");
+  const started = new Date().toISOString();
+  let after = "0";
+  let total = 0;
+  for (let page = 0; page < 50; page++) {
+    const res = await fetch(`https://discord.com/api/v10/guilds/${env.GUILD_ID}/members?limit=1000&after=${after}`, {
+      headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
+    });
+    if (!res.ok) throw new Error(`discord_members_${res.status}`);
+    const members = await res.json();
+    if (!Array.isArray(members) || !members.length) break;
+    const rows = members
+      .filter((m) => m.user && !m.user.bot)
+      .map((m) => ({
+        discord_id: m.user.id,
+        name: String(m.nick || m.user.global_name || m.user.username || "Mitglied")
+          .replace(/[^\p{L}\p{N} ._\-]/gu, "").trim().slice(0, 64) || "Mitglied",
+        avatar: m.user.avatar || null,
+        updated_at: new Date().toISOString(),
+      }));
+    for (let i = 0; i < rows.length; i += 400) {
+      await db(env, "POST", "guild_members", rows.slice(i, i + 400), { upsert: true });
+    }
+    total += members.length;
+    after = members[members.length - 1].user.id;
+    if (members.length < 1000) break;
+  }
+  // Wer nicht mehr auf dem Server ist, wird entfernt
+  if (total > 0) {
+    await db(env, "DELETE", `guild_members?updated_at=lt.${encodeURIComponent(started)}`);
+  }
+  return total;
 }
