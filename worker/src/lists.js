@@ -7,6 +7,14 @@ const IMG_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp
 const MAX_IMG = 2 * 1024 * 1024;
 const COLOR = 9127158; // Besterregen-Lila für Discord-Embeds
 
+// Punkte nach Platz: Platz 1 = 500, letzter Platz = 10, dazwischen gleichmäßig. Außerhalb der Liste = 0.
+export function pointsFor(position, maxPlaces) {
+  const max = maxPlaces || 50;
+  if (!position || position < 1 || position > max) return 0;
+  return Math.round(500 * (1 - (position - 1) / max) * 100) / 100;
+}
+
+
 const has = (perms, need) => perms.includes("admin") || perms.includes(need);
 const clean = (s, max) => (typeof s === "string" ? s.trim().slice(0, max) : "");
 const isHttps = (s) => { try { return new URL(s).protocol === "https:"; } catch { return false; } };
@@ -43,27 +51,81 @@ export async function handleContent(request, url, env, ctx) {
 
   // ---------- Öffentlich ----------
   if (path === "/lists" && method === "GET") {
-    const lists = await db(env, "GET", "lists?select=id,name,slug,max_duration_seconds,position&order=position.asc");
+    const lists = await db(env, "GET", "lists?select=id,name,slug,max_duration_seconds,max_places,position&order=position.asc");
     return json({ lists: lists || [] });
   }
 
   const listMatch = path.match(/^\/lists\/([a-z0-9-]{1,40})\/levels$/);
   if (listMatch && method === "GET") {
-    const lists = await db(env, "GET", `lists?slug=eq.${listMatch[1]}&select=id,name,slug,max_duration_seconds`);
+    const lists = await db(env, "GET", `lists?slug=eq.${listMatch[1]}&select=id,name,slug,max_duration_seconds,max_places`);
     if (!lists || !lists[0]) return json({ error: "not_found" }, 404);
-    const levels = await db(env, "GET",
-      `levels?list_id=eq.${lists[0].id}&select=id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds&order=position.asc`);
-    return json({ list: lists[0], levels: levels || [] });
+    const list = lists[0];
+    const levels = (await db(env, "GET",
+      `levels?list_id=eq.${list.id}&select=id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds&order=position.asc`)) || [];
+    const approved = (await db(env, "GET", `records?status=eq.approved&select=level_id`)) || [];
+    const counts = {};
+    approved.forEach((r) => { counts[r.level_id] = (counts[r.level_id] || 0) + 1; });
+    return json({
+      list,
+      levels: levels.map((l) => ({
+        ...l,
+        points: pointsFor(l.position, list.max_places),
+        completions: counts[l.id] || 0,
+      })),
+    });
   }
 
   const levelMatch = path.match(/^\/levels\/([0-9a-f-]{36})$/);
   if (levelMatch && UUID.test(levelMatch[1]) && method === "GET") {
-    const level = await db(env, "GET",
-      `levels?id=eq.${levelMatch[1]}&select=id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds,list_id`);
-    if (!level || !level[0]) return json({ error: "not_found" }, 404);
-    const records = await db(env, "GET",
-      `records?level_id=eq.${levelMatch[1]}&status=eq.approved&select=id,player_name,video_url,approved_at&order=approved_at.asc`);
-    return json({ level: level[0], records: records || [] });
+    const levels = await db(env, "GET",
+      `levels?id=eq.${levelMatch[1]}&select=id,list_id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds`);
+    if (!levels || !levels[0]) return json({ error: "not_found" }, 404);
+    const level = levels[0];
+    const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places`))?.[0] || {};
+    const records = (await db(env, "GET",
+      `records?level_id=eq.${level.id}&status=eq.approved&select=id,player_name,video_url,approved_at&order=approved_at.asc`)) || [];
+    return json({
+      level: {
+        ...level,
+        listName: list.name,
+        maxPlaces: list.max_places,
+        points: pointsFor(level.position, list.max_places),
+        completions: records.length,
+      },
+      records,
+    });
+  }
+
+  // Statistik: Spieler nach Punkten, Completions und erstellten Levels
+  if (path === "/stats" && method === "GET") {
+    const [levels, lists, records] = await Promise.all([
+      db(env, "GET", "levels?select=id,list_id,position,creator"),
+      db(env, "GET", "lists?select=id,max_places"),
+      db(env, "GET", "records?status=eq.approved&select=player_name,level_id"),
+    ]);
+    const listById = Object.fromEntries((lists || []).map((l) => [l.id, l]));
+    const levelById = Object.fromEntries((levels || []).map((l) => [l.id, l]));
+    const players = new Map();
+    const get = (name) => {
+      const k = name.trim().toLowerCase();
+      if (!players.has(k)) players.set(k, { name: name.trim(), points: 0, completions: 0, created: 0 });
+      return players.get(k);
+    };
+    for (const r of records || []) {
+      const lv = levelById[r.level_id];
+      if (!lv || !r.player_name) continue;
+      const pl = get(r.player_name);
+      pl.completions += 1;
+      pl.points += pointsFor(lv.position, listById[lv.list_id]?.max_places);
+    }
+    for (const lv of levels || []) {
+      if (lv.creator) get(lv.creator).created += 1;
+    }
+    const out = [...players.values()]
+      .map((p) => ({ ...p, points: Math.round(p.points * 100) / 100 }))
+      .sort((a, b) => b.points - a.points || b.completions - a.completions)
+      .slice(0, 300);
+    return json({ players: out });
   }
 
   // ---------- Eingeloggt ----------
