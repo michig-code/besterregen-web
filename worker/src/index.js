@@ -92,7 +92,8 @@ async function authCallback(url, env) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `${env.SITE_URL}/verify.html`,
+      // Sitzungsschlüssel im Fragment (#), damit er nicht an den Server geht; die Seite speichert ihn selbst
+      Location: `${env.SITE_URL}/verify.html#token=${sessionId}`,
       "Set-Cookie": `${COOKIE}=${sessionId}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`,
     },
   });
@@ -243,10 +244,12 @@ function decodeBase64Url(s) {
 // ---------- Hilfsfunktionen ----------
 
 async function getSession(request, env) {
+  const auth = request.headers.get("Authorization") || "";
   const cookie = request.headers.get("Cookie") || "";
   const m = cookie.match(new RegExp(`${COOKIE}=([^;]+)`));
-  if (!m) return null;
-  const rows = await db(env, "GET", `sessions?id=eq.${m[1]}&select=*`);
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : m && m[1];
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
+  const rows = await db(env, "GET", `sessions?id=eq.${token}&select=*`);
   const s = rows && rows[0];
   if (!s || new Date(s.expires_at) < new Date()) return null;
   return s;
@@ -309,7 +312,7 @@ function corsHeaders(request, env) {
     "Access-Control-Allow-Origin": allowed ? origin : env.SITE_URL,
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
 

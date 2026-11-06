@@ -2,8 +2,33 @@
 const API_URL = "/api";
 const box = document.getElementById("box");
 
-const api = (path, opts = {}) =>
-  fetch(API_URL + path, { credentials: "include", ...opts }).then(r => r.json());
+// Sitzungsschlüssel im Browser speichern (localStorage), nicht als Cookie
+const TOKEN_KEY = "br_token";
+function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+function setToken(t) {
+  try { localStorage.setItem(TOKEN_KEY, t); } catch {}
+}
+function clearToken() {
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+
+// Nach der Discord-Anmeldung kommt der Schlüssel im Fragment (#token=...)
+(function takeTokenFromHash() {
+  const m = location.hash.match(/token=([a-f0-9]{64})/);
+  if (m) {
+    setToken(m[1]);
+    history.replaceState(null, "", location.pathname);
+  }
+})();
+
+const api = (path, opts = {}) => {
+  const headers = { ...(opts.headers || {}) };
+  const t = getToken();
+  if (t) headers.Authorization = "Bearer " + t;
+  return fetch(API_URL + path, { ...opts, headers }).then(r => r.json());
+};
 
 function esc(s) {
   const d = document.createElement("div");
@@ -13,6 +38,7 @@ function esc(s) {
 
 async function render() {
   const me = await api("/me").catch(() => ({ loggedIn: false }));
+  if (!me.loggedIn) clearToken();
 
   if (!me.loggedIn) {
     box.innerHTML = `
@@ -26,7 +52,7 @@ async function render() {
     box.innerHTML = `
       <h2>Verknüpft</h2>
       <p>Dein Discord-Konto ist mit dem GD-Account <strong>${esc(me.gdName)}</strong> verbunden.</p>
-      <p><a href="${API_URL}/logout">Abmelden</a></p>`;
+      <p><a href="#" id="logout">Abmelden</a></p>`;
     return;
   }
 
