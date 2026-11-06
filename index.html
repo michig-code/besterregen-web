@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Besterregen – Geometry Dash Listen</title>
+  <title>Besterregen – Listen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,14 +14,21 @@
     <a class="brand" href="index.html">Besterregen</a>
     <nav>
       <a href="index.html">Listen</a>
-      <a href="einreichen.html">Level einreichen</a>
+      <a href="einreichen.html" class="cta">Level einreichen</a>
     </nav>
   </header>
 
+  <section class="hero">
+    <span class="eyebrow">Deutsche Geometry Dash Community</span>
+    <h1>Besterregen Listen</h1>
+    <p>Die schwersten Level unserer Community, nach Platz sortiert.</p>
+  </section>
+
   <main class="container">
-    <h1>Listen</h1>
-    <div class="list-tabs" id="list-tabs"></div>
-    <div id="level-list" class="level-list">Lädt …</div>
+    <div class="list-tabs" id="list-tabs" role="tablist"></div>
+    <div id="level-list" class="level-list">
+      <p class="status">Lädt …</p>
+    </div>
   </main>
 
   <script src="js/app.js"></script>
