@@ -144,6 +144,7 @@ async function renderLists() {
               <small>Kürzel: ${esc(x.slug)} · ${x.max_duration_seconds ? `max. ${esc(x.max_duration_seconds)} s` : "ohne Längenbegrenzung"}</small>
             </div>
             <button class="chip-btn" data-import-list="${esc(x.id)}">Importieren</button>
+            <button class="chip-btn danger" data-delete-list="${esc(x.id)}">Löschen</button>
             <button class="chip-btn" data-team-list="${esc(x.id)}">Team</button>
             <button class="chip-btn" data-edit-list="${esc(x.id)}">Bearbeiten</button>
             <button class="chip-btn" data-open-list="${esc(x.slug)}">Level ordnen</button>
@@ -163,6 +164,8 @@ async function renderLists() {
 
   panel.querySelectorAll("[data-open-list]").forEach((b) =>
     b.addEventListener("click", () => openOrder(b.dataset.openList)));
+  panel.querySelectorAll("[data-delete-list]").forEach((b) =>
+    b.addEventListener("click", () => deleteList(b.dataset.deleteList)));
   panel.querySelectorAll("[data-import-list]").forEach((b) =>
     b.addEventListener("click", () => openImport(b.dataset.importList)));
   panel.querySelectorAll("[data-team-list]").forEach((b) =>
@@ -228,6 +231,23 @@ async function openOrder(slug) {
       return openOrder(slug);
     }
   };
+}
+
+// Liste löschen: Name muss genau eingetippt werden
+async function deleteList(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const typed = prompt(
+    `ACHTUNG: Die Liste „${x.name}“ wird samt allen Leveln, Records, Teams und Abos GELÖSCHT. Das kann nicht rückgängig gemacht werden.\n\nZur Bestätigung den Namen der Liste genau eintippen:`
+  );
+  if (typed === null) return;
+  const r = await api(`/mod/lists/${x.id}`, { method: "DELETE", body: { confirm: typed } });
+  if (!r.ok) {
+    alert(r.data.error === "confirm_mismatch" ? "Der Name stimmt nicht. Die Liste wurde nicht gelöscht." : errText(r.data));
+    return;
+  }
+  alert(`Die Liste „${x.name}“ wurde gelöscht.`);
+  renderLists();
 }
 
 // JSON-Import aus dem Import-Skript: Datei wählen, Vorschau prüfen, dann importieren

@@ -533,6 +533,18 @@ export async function handleContent(request, url, env, ctx) {
     return json({ ok: true });
   }
 
+  // Liste löschen (inkl. Level, Records, Team und Abos). Nur mit Bestätigung durch den genauen Namen.
+  const listDelM = path.match(/^\/mod\/lists\/([0-9a-f-]{36})$/);
+  if (listDelM && UUID.test(listDelM[1]) && method === "DELETE") {
+    const denied = need("lists.manage"); if (denied) return denied;
+    const b = await request.json().catch(() => ({}));
+    const list = (await db(env, "GET", `lists?id=eq.${listDelM[1]}&select=id,name`))?.[0];
+    if (!list) return json({ error: "not_found" }, 404);
+    if (String(b?.confirm || "").trim() !== list.name) return json({ error: "confirm_mismatch" }, 400);
+    await db(env, "DELETE", `lists?id=eq.${listDelM[1]}`);
+    return json({ ok: true });
+  }
+
   const listEditM = path.match(/^\/mod\/lists\/([0-9a-f-]{36})$/);
   if (listEditM && UUID.test(listEditM[1]) && method === "PATCH") {
     const denied = need("lists.manage"); if (denied) return denied;
