@@ -511,3 +511,11 @@ a.level-link .rank { min-height: 56px; height: auto; }
   .user-btn span { display: none; }
   .level-text h3 { font-size: 1.1rem; }
 }
+
+/* ---------- Profil-Platz ohne Springen beim Laden ---------- */
+.user-slot { display: flex; align-items: center; justify-content: flex-end; min-width: 170px; min-height: 42px; flex: none; }
+.user-skel { display: inline-block; width: 170px; height: 42px; border-radius: 999px; background: var(--panel); border: 1px solid var(--panel-border); animation: skel 1.4s ease-in-out infinite; }
+@keyframes skel { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+.user-btn { white-space: nowrap; }
+.user-btn span { display: inline-block; }
+@media (max-width: 760px) { .user-slot { min-width: 44px; } .user-skel { width: 44px; } }
