@@ -33,6 +33,19 @@
   const MOD = ["submissions.review", "lists.manage", "notifications.manage"];
 
 
+  // Nur ein Fenster gleichzeitig: Glocke oder Profil-Menü
+  function closeBell() {
+    const p = document.getElementById("bell-panel");
+    const b = document.getElementById("bell-btn");
+    if (p) p.hidden = true;
+    if (b) b.setAttribute("aria-expanded", "false");
+  }
+  function closeProfileMenu() {
+    const d = document.querySelector(".user-dropdown");
+    const b = document.querySelector(".user-btn");
+    if (d) d.hidden = true;
+    if (b) b.setAttribute("aria-expanded", "false");
+  }
   // ---------- Glocke & Benachrichtigungen ----------
   const BELL_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg>';
   function bellHtml() {
@@ -90,6 +103,7 @@
     btn.dataset.ready = "1";
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
+      closeProfileMenu();
       const open = panel.hidden;
       panel.hidden = !open;
       btn.setAttribute("aria-expanded", String(open));
@@ -163,6 +177,7 @@
     const dd = slot.querySelector(".user-dropdown");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
+      closeBell();
       const open = dd.hidden;
       dd.hidden = !open;
       btn.setAttribute("aria-expanded", String(open));
