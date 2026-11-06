@@ -62,6 +62,24 @@ def parse_length(txt):
     m = re.match(r"^(\d+)\s*s", txt)
     return int(m.group(1)) if m else None
 
+def parse_records(page):
+    """Records-Tabelle: Spieler, Fortschritt, Video-Link."""
+    m = re.search(r'<table class="data-table records-table">(.*?)</table>', page, re.S)
+    if not m:
+        return []
+    out = []
+    for row in re.findall(r"<tr>(.*?)</tr>", m.group(1), re.S):
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+        if len(cells) < 3:
+            continue
+        player = text_of(cells[0])
+        progress = text_of(cells[1])
+        link = re.search(r'href="([^"]+)"', cells[2])
+        if not player:
+            continue
+        out.append({"player": player, "progress": progress, "videoUrl": link.group(1) if link else None})
+    return out
+
 def parse_detail(page):
     t = text_of(page)
     def grab(label, pattern=r"(.+?)(?=\s(?:Position|Category|Difficulty|Requirement|Created by|Published by|Verified by|Level ID|Level Length|Song|NONG|Objects|At Requirement|At 100%|Completions|Raw Footage)\b|$)"):
@@ -79,6 +97,7 @@ def parse_detail(page):
         "objects": int(objects_txt) if objects_txt else None,
         "nong": grab("NONG"),
         "creators": grab("Created by"),
+        "records": parse_records(page),
     }
 
 def main():

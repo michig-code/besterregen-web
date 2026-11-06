@@ -488,10 +488,35 @@ export async function handleContent(request, url, env, ctx) {
         creators: clean(e.creators, 200) || null,
       });
     }
+    const created = [];
     for (let i = 0; i < rows.length; i += 200) {
-      await db(env, "POST", "levels", rows.slice(i, i + 200), { prefer: "return=minimal" });
+      const got = await db(env, "POST", "levels", rows.slice(i, i + 200), { prefer: "return=representation" });
+      created.push(...(got || []));
     }
-    return json({ ok: true, imported: rows.length, skipped });
+    // Records der Einzelseiten (bestätigt, Fortschritt als Anmerkung)
+    const idByPos = Object.fromEntries(created.map((c) => [c.position, c.id]));
+    const recRows = [];
+    for (const e of b.levels) {
+      const levelId = idByPos[Number(e?.rank)];
+      if (!levelId || !Array.isArray(e.records)) continue;
+      for (const r of e.records.slice(0, 50)) {
+        const player = clean(r?.player, 40);
+        if (!player) continue;
+        recRows.push({
+          level_id: levelId,
+          player_name: player,
+          video_url: isHttps(String(r?.videoUrl || "")) ? String(r.videoUrl).slice(0, 300) : "https://www.youtube.com/",
+          notes: r?.progress ? `Fortschritt beim Import: ${clean(r.progress, 20)}` : null,
+          submitted_by: "import",
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        });
+      }
+    }
+    for (let i = 0; i < recRows.length; i += 200) {
+      await db(env, "POST", "records", recRows.slice(i, i + 200), { prefer: "return=minimal" });
+    }
+    return json({ ok: true, imported: rows.length, records: recRows.length, skipped });
   }
 
   if (path === "/mod/lists" && method === "POST") {
