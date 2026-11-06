@@ -38,6 +38,8 @@ export default {
         const r = await handleContent(request, url, env, { getSession, json, cors });
         if (r) return r;
       }
+      if (url.pathname === "/discord/stats" && request.method === "GET")
+        return json(await discordStats(env), 200, cors);
       if (url.pathname === "/gd/unlink" && request.method === "POST")
         return json(await gdUnlink(request, env), 200, cors);
       if (url.pathname.startsWith("/admin/"))
@@ -372,4 +374,27 @@ async function gdUnlink(request, env) {
   if (!session) return { error: "not_logged_in" };
   await db(env, "DELETE", `gd_links?discord_id=eq.${session.discord_id}`);
   return { ok: true };
+}
+
+// Mitglieder- und Online-Zahl des Discord-Servers (über die öffentliche Einladung, ohne Bot).
+// Werte sind Näherungen von Discord und werden 60 Sekunden zwischengespeichert.
+let discordCache = { at: 0, data: null };
+async function discordStats(env) {
+  if (discordCache.data && Date.now() - discordCache.at < 60000) return discordCache.data;
+  const code = env.DISCORD_INVITE_CODE;
+  if (!code || code.startsWith("HIER")) return { error: "not_configured" };
+  try {
+    const res = await fetch(`https://discord.com/api/v10/invites/${encodeURIComponent(code)}?with_counts=true`);
+    if (!res.ok) return discordCache.data || { error: "unavailable" };
+    const j = await res.json();
+    const data = {
+      members: j.approximate_member_count ?? null,
+      online: j.approximate_presence_count ?? null,
+      updatedAt: new Date().toISOString(),
+    };
+    discordCache = { at: Date.now(), data };
+    return data;
+  } catch {
+    return discordCache.data || { error: "unavailable" };
+  }
 }

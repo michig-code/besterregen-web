@@ -464,3 +464,11 @@ a.level-link .rank { min-height: 56px; height: auto; }
 .support-card details[open] summary::after { content: "–"; }
 .support-card details p { color: var(--muted); margin: 10px 0 0; }
 .support-card details a { color: var(--cyan); }
+
+/* ---------- Discord-Zahlen in der Seitenleiste ---------- */
+.dstats { display: flex; gap: 12px; margin-bottom: 12px; }
+.dstat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); }
+.dstat strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.dstat small { color: var(--muted); font-size: .8rem; }
+.dot-online { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
