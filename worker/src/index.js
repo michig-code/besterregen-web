@@ -184,34 +184,28 @@ async function verifyCheck(request, env) {
 async function fetchLevelComments(levelId) {
   const res = await fetch(GD_COMMENTS, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "",
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      levelID: levelId,
-      page: "0",
-      total: "0",
-      secret: GD_SECRET,
-      mode: "0",
-      count: "100",
+      levelID: levelId, page: "0", total: "0", secret: GD_SECRET, mode: "0", count: "100",
     }),
   });
   const text = await res.text();
   if (!text || text === "-1") return [];
 
-  const [commentPart, userPart = ""] = text.split("#");
-  const users = parseUsers(userPart);
-
+  // Kommentare stehen vor dem "#"; danach kommen nur Seitenangaben
+  const commentPart = text.split("#")[0];
   return commentPart
     .split("|")
     .filter(Boolean)
     .map((entry) => {
       const f = parseFields(entry);
-      const text = decodeBase64Url(f["2"] || "");
-      const playerId = f["1"] || f["3"];
-      const user = users[playerId] || {};
-      return { text, accountId: user.accountId, userName: user.userName };
+      // Feld 2 = Kommentartext (Base64), Feld 16 = Account-ID
+      const body = decodeBase64Url(f["2"] || "");
+      const accountId = f["16"];
+      // Der Name steht direkt vor "~9~" (Zeitangabe), er beginnt nicht mit einer Ziffer
+      const nameMatch = entry.match(/~([^~\d][^~]*)~9~/);
+      const userName = nameMatch ? nameMatch[1] : null;
+      return { text: body, accountId, userName };
     })
     .filter((c) => c.accountId && c.userName);
 }
@@ -221,18 +215,6 @@ function parseFields(entry) {
   const out = {};
   for (let i = 0; i < parts.length - 1; i += 2) out[parts[i]] = parts[i + 1];
   return out;
-}
-
-function parseUsers(part) {
-  const map = {};
-  part.split("|").filter(Boolean).forEach((entry) => {
-    // Format der Benutzerdaten: userName:playerID:accountID (inoffiziell, muss live geprüft werden)
-    const [userName, playerId, accountId] = entry.split(":");
-    if (userName && playerId && accountId) {
-      map[playerId] = { userName, accountId };
-    }
-  });
-  return map;
 }
 
 function decodeBase64Url(s) {
