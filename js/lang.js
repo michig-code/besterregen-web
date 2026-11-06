@@ -3,7 +3,7 @@
   const btn = document.getElementById("lang-btn");
   const apply = () => {
     const en = document.documentElement.dataset.lang === "en";
-    if (btn) btn.textContent = en ? "DE" : "EN";
+    if (btn) btn.textContent = en ? "EN" : "DE";
     document.documentElement.lang = en ? "en" : "de";
   };
   apply();
