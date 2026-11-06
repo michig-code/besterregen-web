@@ -1,4 +1,4 @@
-# Besterregen – Geometry Dash Listen
+# Besterregen
 
 Statische Webseite für die Listen der Community.
 
