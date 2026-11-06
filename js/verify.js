@@ -68,18 +68,28 @@ async function render() {
     <div id="code"></div>`;
 
   document.getElementById("start").addEventListener("click", startVerify);
+
+  // Offenen Code wiederherstellen (z. B. nach dem Neuladen)
+  const st = await api("/verify/status").catch(() => ({}));
+  if (st.code) showCode(st.code, st.levelId, st.expiresAt);
+}
+
+function showCode(code, levelId, expiresAt) {
+  const minutesLeft = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+  document.getElementById("start").style.display = "none";
+  document.getElementById("code").innerHTML = `
+    <p>Kommentiere unter diesem Level folgenden Code:</p>
+    <p class="code">${esc(code)}</p>
+    <p class="hint">Level-ID: ${esc(levelId)} · noch etwa ${minutesLeft} Minuten gültig</p>
+    <button class="btn" id="check">Ich habe kommentiert</button>
+    <p id="result"></p>`;
+  document.getElementById("check").addEventListener("click", checkVerify);
 }
 
 async function startVerify() {
   const data = await api("/verify/start", { method: "POST" });
-  const out = document.getElementById("code");
-  out.innerHTML = `
-    <p>Kommentiere unter diesem Level folgenden Code:</p>
-    <p class="code">${esc(data.code)}</p>
-    <p class="hint">Level-ID: ${esc(data.levelId)} · gültig ${data.expiresInMinutes} Minuten</p>
-    <button class="btn" id="check">Ich habe kommentiert</button>
-    <p id="result"></p>`;
-  document.getElementById("check").addEventListener("click", checkVerify);
+  const expiresAt = new Date(Date.now() + data.expiresInMinutes * 60000).toISOString();
+  showCode(data.code, data.levelId, expiresAt);
 }
 
 async function checkVerify() {

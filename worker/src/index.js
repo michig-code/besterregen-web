@@ -33,8 +33,8 @@ export default {
         return json(await verifyCheck(request, env), 200, cors);
       if (url.pathname === "/logout") return logout(env);
       if (url.pathname === "/health") return json(await health(env), 200, cors);
-      if (url.pathname === "/verify/debug" && request.method === "POST")
-        return json(await verifyDebug(request, env), 200, cors);
+      if (url.pathname === "/verify/status" && request.method === "GET")
+        return json(await verifyStatus(request, env), 200, cors);
       return json({ error: "not_found" }, 404, cors);
     } catch (err) {
       console.error(err);
@@ -329,6 +329,25 @@ async function health(env) {
   return out;
 }
 
+// Prüfseite: zeigt nur Ja/Nein, keine Geheimnisse
+async function health(env) {
+  const out = {
+    discordClientId: !!env.DISCORD_CLIENT_ID,
+    discordSecret: !!env.DISCORD_CLIENT_SECRET,
+    supabaseUrl: !!env.SUPABASE_URL,
+    supabaseKey: !!env.SUPABASE_SERVICE_KEY,
+    apiUrl: env.API_URL,
+    siteUrl: env.SITE_URL,
+  };
+  try {
+    await db(env, "GET", "sessions?select=id&limit=1");
+    out.supabaseTableSessions = "ok";
+  } catch (e) {
+    out.supabaseTableSessions = String(e.message || e);
+  }
+  return out;
+}
+
 // Debug: zeigt die rohe Antwort der GD-Server (nur für eingeloggte Nutzer)
 async function verifyDebug(request, env) {
   const session = await getSession(request, env);
@@ -350,4 +369,14 @@ async function verifyDebug(request, env) {
     userSectionHead: (parts[1] || "").slice(0, 600),
     parsedComments: (await fetchLevelComments(env.VERIFY_LEVEL_ID)).length,
   };
+}
+
+// Liefert einen noch offenen Code, damit die Seite nach dem Neuladen weitermacht
+async function verifyStatus(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return { loggedIn: false };
+  const rows = await db(env, "GET", `verify_codes?discord_id=eq.${session.discord_id}&select=*`);
+  const pending = rows && rows[0];
+  if (!pending || new Date(pending.expires_at) < new Date()) return { code: null };
+  return { code: pending.code, levelId: env.VERIFY_LEVEL_ID, expiresAt: pending.expires_at };
 }
