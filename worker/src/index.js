@@ -322,11 +322,14 @@ async function health(env) {
     apiUrl: env.API_URL,
     siteUrl: env.SITE_URL,
   };
-  try {
-    await db(env, "GET", "sessions?select=id&limit=1");
-    out.supabaseTableSessions = "ok";
-  } catch (e) {
-    out.supabaseTableSessions = String(e.message || e);
+  // Jede Tabelle einzeln prüfen, damit man sieht, was fehlt
+  for (const t of ["sessions", "verify_codes", "gd_links", "users", "site_roles", "user_site_roles", "lists", "levels", "level_submissions", "records", "settings"]) {
+    try {
+      await db(env, "GET", `${t}?select=*&limit=1`);
+      out[`table_${t}`] = "ok";
+    } catch (e) {
+      out[`table_${t}`] = String(e.message || e).slice(0, 160);
+    }
   }
   return out;
 }
