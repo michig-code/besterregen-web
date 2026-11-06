@@ -1,6 +1,7 @@
 // Listen, Level-Einsendungen, Records und Moderation
 import { db } from "./db.js";
 import { getUserPermissions } from "./admin.js";
+import { notifyUsers, usersWithPermission, subscribers } from "./notifications.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const IMG_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
@@ -183,6 +184,12 @@ export async function handleContent(request, url, env, ctx) {
       submitter_name: session.discord_name, status: "pending",
     }, { prefer: "return=representation" });
 
+    await notifyUsers(env, await usersWithPermission(env, "submissions.review"), {
+      type: "level_submitted",
+      title: `Neues Level eingesendet: ${name}`,
+      body: `${creator} · ${lists[0].name} · ${duration} s`,
+      link: "mod.html",
+    }).catch(() => {});
     await notify(env, "level_submitted", {
       title: "Neues Level eingesendet",
       description: `**${name}** von ${creator} für ${lists[0].name} (${duration} s)`,
@@ -208,6 +215,12 @@ export async function handleContent(request, url, env, ctx) {
       level_id: levelId, player_name: playerName, video_url: videoUrl, notes: notes || null,
       submitted_by: session.discord_id, status: "pending",
     });
+    await notifyUsers(env, await usersWithPermission(env, "submissions.review"), {
+      type: "record_submitted",
+      title: `Neuer Record eingesendet: ${playerName}`,
+      body: `auf ${levels[0].name}`,
+      link: "mod.html",
+    }).catch(() => {});
     await notify(env, "record_submitted", {
       title: "Neuer Record eingesendet",
       description: `**${playerName}** hat **${levels[0].name}** eingesendet`,
@@ -250,6 +263,12 @@ export async function handleContent(request, url, env, ctx) {
     await db(env, "PATCH", `level_submissions?id=eq.${sub.id}`, {
       status: "accepted", reviewed_by: session.discord_id, reviewed_at: new Date().toISOString(),
     });
+    await notifyUsers(env, [...(await subscribers(env, sub.list_id)), sub.submitted_by], {
+      type: "level_accepted",
+      title: `Neues Level: ${sub.name}`,
+      body: `Platz ${pos} · von ${sub.creator}`,
+      link: `level.html?id=${newId}`,
+    }).catch(() => {});
     await notify(env, "level_accepted", {
       title: "Level angenommen",
       description: `**${sub.name}** von ${sub.creator} ist auf Platz ${pos}`,
@@ -262,10 +281,19 @@ export async function handleContent(request, url, env, ctx) {
   if (rejectLevelM && UUID.test(rejectLevelM[1]) && method === "POST") {
     const denied = need("submissions.review"); if (denied) return denied;
     const b = await request.json().catch(() => ({}));
+    const rejSub = (await db(env, "GET", `level_submissions?id=eq.${rejectLevelM[1]}&select=name,submitted_by`))?.[0];
     await db(env, "PATCH", `level_submissions?id=eq.${rejectLevelM[1]}&status=eq.pending`, {
       status: "rejected", reason: clean(b?.reason, 300) || null,
       reviewed_by: session.discord_id, reviewed_at: new Date().toISOString(),
     });
+    if (rejSub) {
+      await notifyUsers(env, [rejSub.submitted_by], {
+        type: "level_rejected",
+        title: `Dein Level wurde abgelehnt: ${rejSub.name}`,
+        body: clean(b?.reason, 240) || "Kein Grund angegeben.",
+        link: "einreichen.html",
+      }).catch(() => {});
+    }
     return json({ ok: true });
   }
 
@@ -293,11 +321,17 @@ export async function handleContent(request, url, env, ctx) {
   const recApproveM = path.match(/^\/mod\/records\/([0-9a-f-]{36})\/approve$/);
   if (recApproveM && UUID.test(recApproveM[1]) && method === "POST") {
     const denied = need("submissions.review"); if (denied) return denied;
-    const rec = (await db(env, "GET", `records?id=eq.${recApproveM[1]}&select=id,player_name,level_id,levels(name)`))?.[0];
+    const rec = (await db(env, "GET", `records?id=eq.${recApproveM[1]}&select=id,player_name,level_id,submitted_by,levels(name,list_id)`))?.[0];
     if (!rec) return json({ error: "not_found" }, 404);
     await db(env, "PATCH", `records?id=eq.${rec.id}`, {
       status: "approved", approved_at: new Date().toISOString(), reviewed_by: session.discord_id,
     });
+    await notifyUsers(env, [...(await subscribers(env, rec.levels?.list_id)), rec.submitted_by], {
+      type: "record_approved",
+      title: `Neuer Record auf ${rec.levels?.name || "Level"}`,
+      body: `${rec.player_name} hat es geschafft`,
+      link: `level.html?id=${rec.level_id}`,
+    }).catch(() => {});
     await notify(env, "record_approved", {
       title: "Neuer Record bestätigt",
       description: `**${rec.player_name}** auf **${rec.levels?.name || "Level"}**`,
@@ -310,9 +344,18 @@ export async function handleContent(request, url, env, ctx) {
   if (recRejectM && UUID.test(recRejectM[1]) && method === "POST") {
     const denied = need("submissions.review"); if (denied) return denied;
     const b = await request.json().catch(() => ({}));
+    const recRej = (await db(env, "GET", `records?id=eq.${recRejectM[1]}&select=player_name,submitted_by,levels(name)`))?.[0];
     await db(env, "PATCH", `records?id=eq.${recRejectM[1]}&status=eq.pending`, {
       status: "rejected", reason: clean(b?.reason, 300) || null, reviewed_by: session.discord_id,
     });
+    if (recRej) {
+      await notifyUsers(env, [recRej.submitted_by], {
+        type: "record_rejected",
+        title: `Dein Record wurde abgelehnt: ${recRej.levels?.name || ""}`,
+        body: clean(b?.reason, 240) || "Kein Grund angegeben.",
+        link: "einreichen.html",
+      }).catch(() => {});
+    }
     return json({ ok: true });
   }
 

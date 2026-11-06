@@ -1,6 +1,7 @@
 import { db } from "./db.js";
 import { handleAdmin, getUserPermissions } from "./admin.js";
 import { handleContent } from "./lists.js";
+import { handleNotifications } from "./notifications.js";
 // Bester Regen API (Cloudflare Worker)
 // Routen:
 //   GET  /auth/discord            -> leitet zu Discord-Login weiter
@@ -34,6 +35,10 @@ export default {
         return json(await verifyStart(request, env), 200, cors);
       if (url.pathname === "/verify/check" && request.method === "POST")
         return json(await verifyCheck(request, env), 200, cors);
+      if (/^\/(notifications|subscriptions)(\/|$)/.test(url.pathname)) {
+        const r = await handleNotifications(request, url, env, { getSession, json, cors });
+        if (r) return r;
+      }
       if (/^\/(lists|levels|submit|upload|mod)(\/|$)/.test(url.pathname)) {
         const r = await handleContent(request, url, env, { getSession, json, cors });
         if (r) return r;
