@@ -53,6 +53,11 @@ async function render() {
       <h2>Verknüpft</h2>
       <p>Dein Discord-Konto ist mit dem GD-Account <strong>${esc(me.gdName)}</strong> verbunden.</p>
       <p><a href="#" id="logout">Abmelden</a></p>`;
+    document.getElementById("logout").addEventListener("click", (e) => {
+      e.preventDefault();
+      clearToken();
+      render();
+    });
     return;
   }
 
