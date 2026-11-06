@@ -407,7 +407,21 @@ export async function handleContent(request, url, env, ctx) {
     const denied = need("lists.manage"); if (denied) return denied;
     const b = await request.json().catch(() => null);
     const patch = {};
-    if (typeof b?.name === "string") patch.name = clean(b.name, 60);
+    if (typeof b?.name === "string") {
+      const name = clean(b.name, 60);
+      if (!name) return json({ error: "missing_fields" }, 400);
+      patch.name = name;
+    }
+    if (typeof b?.slug === "string") {
+      const slug = clean(b.slug, 40).toLowerCase();
+      if (!/^[a-z0-9-]{1,40}$/.test(slug)) return json({ error: "invalid_slug" }, 400);
+      patch.slug = slug;
+    }
+    if ("maxPlaces" in (b || {})) {
+      const mp = Number(b.maxPlaces);
+      if (!Number.isInteger(mp) || mp < 1 || mp > 500) return json({ error: "invalid_places" }, 400);
+      patch.max_places = mp;
+    }
     if ("maxDurationSeconds" in (b || {})) {
       const max = b.maxDurationSeconds === null || b.maxDurationSeconds === "" ? null : Number(b.maxDurationSeconds);
       if (max !== null && (!Number.isInteger(max) || max < 1)) return json({ error: "invalid_duration" }, 400);
@@ -415,6 +429,38 @@ export async function handleContent(request, url, env, ctx) {
     }
     if (!Object.keys(patch).length) return json({ error: "missing_fields" }, 400);
     await db(env, "PATCH", `lists?id=eq.${listEditM[1]}`, patch);
+    return json({ ok: true });
+  }
+
+  // Level-Angaben bearbeiten (Liste und Platz bleiben unverändert)
+  const levelEditM = path.match(/^\/mod\/levels\/([0-9a-f-]{36})$/);
+  if (levelEditM && UUID.test(levelEditM[1]) && method === "PATCH") {
+    const denied = need("lists.manage"); if (denied) return denied;
+    const b = await request.json().catch(() => null);
+    const level = (await db(env, "GET", `levels?id=eq.${levelEditM[1]}&select=id,list_id`))?.[0];
+    if (!level) return json({ error: "not_found" }, 404);
+    const patch = {};
+    const text = (key, max) => { if (typeof b?.[key] === "string") patch[key] = clean(b[key], max); };
+    text("name", 80); text("creator", 60); text("verifier", 60);
+    if (typeof b?.gdLevelId === "string") {
+      const id = b.gdLevelId.trim();
+      if (!/^\d{1,12}$/.test(id)) return json({ error: "invalid_level_id" }, 400);
+      patch.gd_level_id = id;
+    }
+    if (typeof b?.videoUrl === "string") {
+      if (!isHttps(clean(b.videoUrl, 300))) return json({ error: "invalid_video" }, 400);
+      patch.video_url = clean(b.videoUrl, 300);
+    }
+    if ("durationSeconds" in (b || {})) {
+      const d = Number(b.durationSeconds);
+      if (!Number.isInteger(d) || d < 1) return json({ error: "invalid_duration" }, 400);
+      const max = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=max_duration_seconds`))?.[0]?.max_duration_seconds;
+      if (max && d > max) return json({ error: "too_long", max }, 400);
+      patch.duration_seconds = d;
+    }
+    if (!Object.keys(patch).length) return json({ error: "missing_fields" }, 400);
+    if (patch.name === "" || patch.creator === "" || patch.verifier === "") return json({ error: "missing_fields" }, 400);
+    await db(env, "PATCH", `levels?id=eq.${levelEditM[1]}`, patch);
     return json({ ok: true });
   }
 

@@ -143,6 +143,7 @@ async function renderLists() {
               <strong>${esc(x.name)}</strong>
               <small>Kürzel: ${esc(x.slug)} · ${x.max_duration_seconds ? `max. ${esc(x.max_duration_seconds)} s` : "ohne Längenbegrenzung"}</small>
             </div>
+            <button class="chip-btn" data-edit-list="${esc(x.id)}">Bearbeiten</button>
             <button class="chip-btn" data-open-list="${esc(x.slug)}">Level ordnen</button>
           </div>`).join("")}
       </div>
@@ -160,6 +161,8 @@ async function renderLists() {
 
   panel.querySelectorAll("[data-open-list]").forEach((b) =>
     b.addEventListener("click", () => openOrder(b.dataset.openList)));
+  panel.querySelectorAll("[data-edit-list]").forEach((b) =>
+    b.addEventListener("click", () => editList(b.dataset.editList)));
 
   const form = document.getElementById("new-list");
   if (form) form.addEventListener("submit", async (e) => {
@@ -188,6 +191,7 @@ async function openOrder(slug) {
         <div class="role-row" data-id="${esc(l.id)}">
           <span class="rank-mini">#${i + 1}</span>
           <div class="role-info"><strong>${esc(l.name)}</strong><small>von ${esc(l.creator)} · ${esc(l.duration_seconds || "?")} s</small></div>
+          <button class="chip-btn" data-editlevel="${esc(l.id)}">Bearbeiten</button>
           <button class="chip-btn" data-up="${i}">↑</button>
           <button class="chip-btn" data-down="${i}">↓</button>
           <button class="chip-btn danger" data-del="${esc(l.id)}">Entfernen</button>
@@ -199,7 +203,9 @@ async function openOrder(slug) {
     const up = e.target.closest("[data-up]");
     const down = e.target.closest("[data-down]");
     const del = e.target.closest("[data-del]");
+    const editL = e.target.closest("[data-editlevel]");
     const msg = box.querySelector("[data-msg]");
+    if (editL) return editLevel(editL.dataset.editlevel, slug);
     if (del) {
       if (!confirm("Level wirklich von der Liste entfernen?")) return;
       const res = await api(`/mod/levels/${del.dataset.del}`, { method: "DELETE" });
@@ -216,6 +222,77 @@ async function openOrder(slug) {
       return openOrder(slug);
     }
   };
+}
+
+// Liste bearbeiten: Name, Kürzel, Platzanzahl, maximale Länge
+function editList(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const box = document.getElementById("order-box");
+  box.innerHTML = `
+    <h2>${esc(x.name)} bearbeiten</h2>
+    <form class="role-form" id="edit-list">
+      <label>Name <input name="name" maxlength="60" required value="${esc(x.name)}"></label>
+      <label>Kürzel (Link) <input name="slug" maxlength="40" required value="${esc(x.slug)}"></label>
+      <label>Anzahl Plätze <input name="maxPlaces" type="number" min="1" max="500" required value="${esc(x.max_places || 50)}"></label>
+      <label>Maximale Länge in Sekunden (leer = keine Grenze) <input name="maxDurationSeconds" type="number" min="1" value="${esc(x.max_duration_seconds ?? "")}"></label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Speichern</button>
+        <button class="btn ghost" type="button" id="cancel-edit">Abbrechen</button>
+      </div>
+      <p class="hint" data-msg></p>
+    </form>`;
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("cancel-edit").addEventListener("click", () => renderLists());
+  document.getElementById("edit-list").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const msg = e.target.querySelector("[data-msg]");
+    const res = await api(`/mod/lists/${x.id}`, { method: "PATCH", body: {
+      name: f.name, slug: f.slug,
+      maxPlaces: Number(f.maxPlaces),
+      maxDurationSeconds: f.maxDurationSeconds ? Number(f.maxDurationSeconds) : null,
+    }});
+    if (!res.ok) { msg.textContent = errText(res.data); return; }
+    renderLists();
+  });
+}
+
+// Level bearbeiten (Angaben, nicht Platz)
+function editLevel(levelId, slug) {
+  const box = document.getElementById("order-box");
+  api(`/levels/${levelId}`).then((r) => {
+    const lv = (r.data && r.data.level) || null;
+    if (!lv) return;
+    box.innerHTML = `
+      <h2>${esc(lv.name)} bearbeiten</h2>
+      <form class="role-form" id="edit-level">
+        <label>Name <input name="name" maxlength="80" required value="${esc(lv.name)}"></label>
+        <label>Creator <input name="creator" maxlength="60" required value="${esc(lv.creator)}"></label>
+        <label>Verifier <input name="verifier" maxlength="60" required value="${esc(lv.verifier)}"></label>
+        <label>GD-Level-ID <input name="gdLevelId" inputmode="numeric" maxlength="12" required value="${esc(lv.gd_level_id)}"></label>
+        <label>Länge in Sekunden <input name="durationSeconds" type="number" min="1" value="${esc(lv.duration_seconds ?? "")}"></label>
+        <label>Video-Link <input name="videoUrl" type="url" maxlength="300" required value="${esc(lv.video_url)}"></label>
+        <div class="form-actions">
+          <button class="btn" type="submit">Speichern</button>
+          <button class="btn ghost" type="button" id="cancel-level">Zurück zur Liste</button>
+        </div>
+        <p class="hint" data-msg></p>
+      </form>`;
+    document.getElementById("cancel-level").addEventListener("click", () => openOrder(slug));
+    document.getElementById("edit-level").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const msg = e.target.querySelector("[data-msg]");
+      const res = await api(`/mod/levels/${levelId}`, { method: "PATCH", body: {
+        name: f.name, creator: f.creator, verifier: f.verifier, gdLevelId: f.gdLevelId,
+        durationSeconds: f.durationSeconds ? Number(f.durationSeconds) : undefined,
+        videoUrl: f.videoUrl,
+      }});
+      if (!res.ok) { msg.textContent = errText(res.data); return; }
+      openOrder(slug);
+    });
+  });
 }
 
 // ---------- Discord-Benachrichtigungen ----------
