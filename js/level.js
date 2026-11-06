@@ -7,7 +7,7 @@
   const res = await api(`/levels/${encodeURIComponent(id)}`);
   if (!res.ok) { app.innerHTML = `<p class="status">${esc(errText(res.data))}</p>`; return; }
   const { level, records } = res.data;
-  document.title = `${level.name} – Besterregen`;
+  document.title = `${level.name} – Bester Regen`;
 
   const yt = (url) => {
     const m = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);

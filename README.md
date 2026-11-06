@@ -1,4 +1,4 @@
-# Besterregen
+# Bester Regen
 
 Webseite für die Level-Listen der **Bester Regen** Discord-Community. Hier werden die Listen angezeigt, Level eingereicht und später Rechte über den Discord-Login vergeben.
 

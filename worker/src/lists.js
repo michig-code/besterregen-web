@@ -5,7 +5,7 @@ import { getUserPermissions } from "./admin.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const IMG_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_IMG = 2 * 1024 * 1024;
-const COLOR = 9127158; // Besterregen-Lila für Discord-Embeds
+const COLOR = 9127158; // Bester Regen-Lila für Discord-Embeds
 
 // Punkte nach Platz: Platz 1 = 500, letzter Platz = 10, dazwischen gleichmäßig. Außerhalb der Liste = 0.
 export function pointsFor(position, maxPlaces) {

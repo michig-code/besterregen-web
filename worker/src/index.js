@@ -1,7 +1,7 @@
 import { db } from "./db.js";
 import { handleAdmin, getUserPermissions } from "./admin.js";
 import { handleContent } from "./lists.js";
-// Besterregen API (Cloudflare Worker)
+// Bester Regen API (Cloudflare Worker)
 // Routen:
 //   GET  /auth/discord            -> leitet zu Discord-Login weiter
 //   GET  /auth/callback           -> tauscht Code, speichert Sitzung, leitet zurück
