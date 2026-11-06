@@ -88,6 +88,7 @@ def main():
     ap.add_argument("--details", action="store_true", help="jede Einzelseite abrufen")
     ap.add_argument("--out", default="liste.json")
     ap.add_argument("--delay", type=float, default=1.0, help="Pause zwischen Anfragen in Sekunden")
+    ap.add_argument("--details-dir", help="Ordner mit gespeicherten Einzelseiten (Dateinamen beginnen mit der Platzierung, z. B. '#1 - Name.html')")
     args = ap.parse_args()
     if not args.url and not args.file:
         ap.error("--url oder --file angeben")
@@ -101,6 +102,22 @@ def main():
 
     entries = parse_overview(page, base)
     print(f"{len(entries)} Einträge in der Übersicht gefunden.", file=sys.stderr)
+
+    if args.details_dir:
+        import os
+        files = {}
+        for name in os.listdir(args.details_dir):
+            m = re.match(r"^#?(\d+)\b", name)
+            if m and name.lower().endswith((".html", ".htm")):
+                files[int(m.group(1))] = os.path.join(args.details_dir, name)
+        for e in entries:
+            path = files.get(e["rank"])
+            if not path:
+                print(f"  #{e['rank']} {e['name']}: keine gespeicherte Seite gefunden", file=sys.stderr)
+                continue
+            with open(path, encoding="utf-8", errors="replace") as f:
+                e.update(parse_detail(f.read()))
+        print(f"{len(files)} gespeicherte Einzelseiten gelesen.", file=sys.stderr)
 
     if args.details:
         for e in entries:
