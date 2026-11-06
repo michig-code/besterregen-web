@@ -449,8 +449,11 @@ export async function handleContent(request, url, env, ctx) {
     const list = (await db(env, "GET", `lists?id=eq.${b.listId}&select=id,max_duration_seconds`))?.[0];
     if (!list) return json({ error: "invalid_list" }, 400);
     const existing = (await db(env, "GET", `levels?list_id=eq.${b.listId}&select=position`)) || [];
-    if (existing.length) {
+    if (existing.length && b.mode !== "merge") {
       return json({ error: "list_not_empty", count: existing.length }, 409);
+    }
+    if (existing.length && b.mode === "merge") {
+      return json(await mergeImport(env, list, b.levels));
     }
     const rows = [];
     const skipped = [];
@@ -659,4 +662,86 @@ export async function handleContent(request, url, env, ctx) {
   }
 
   return json({ error: "not_found" }, 404);
+}
+
+// Erneuter Import: bekannte Level (gleiche Level-ID) werden aktualisiert und behalten ihre Records.
+// Neue Level werden angelegt. Level, die im Import fehlen, bleiben unverändert.
+async function mergeImport(env, list, levels) {
+  const existing = (await db(env, "GET", `levels?list_id=eq.${list.id}&select=id,gd_level_id,position`)) || [];
+  const byGd = new Map(existing.map((x) => [String(x.gd_level_id), x]));
+  const seen = new Set();
+  const skipped = [];
+  const updates = [];
+  const news = [];
+  for (const e of levels) {
+    const rank = Number(e?.rank);
+    const gd = String(e?.levelId || "").trim();
+    const name = clean(e?.name, 80);
+    if (!Number.isInteger(rank) || rank < 1 || !name) { skipped.push({ rank: e?.rank ?? null, name: e?.name ?? null, reason: "Platz oder Name fehlt" }); continue; }
+    if (!/^\d{1,12}$/.test(gd)) { skipped.push({ rank, name, reason: "Level-ID fehlt" }); continue; }
+    const dur = e.lengthSeconds == null ? null : Number(e.lengthSeconds);
+    if (dur !== null && (!Number.isInteger(dur) || dur < 1)) { skipped.push({ rank, name, reason: "Länge ist ungültig" }); continue; }
+    if (dur && list.max_duration_seconds && dur > list.max_duration_seconds) { skipped.push({ rank, name, reason: `Länger als ${list.max_duration_seconds} s` }); continue; }
+    const vid = String(e.videoId || "");
+    const fields = {
+      position: rank,
+      name,
+      creator: clean(e.publisher, 60) || clean(e.verifier, 60) || "Unbekannt",
+      verifier: clean(e.verifier, 60) || clean(e.publisher, 60) || "Unbekannt",
+      gd_level_id: gd,
+      video_url: /^[\w-]{11}$/.test(vid) ? `https://www.youtube.com/watch?v=${vid}` : "https://www.youtube.com/",
+      image_url: /^[\w-]{11}$/.test(vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null,
+      duration_seconds: dur,
+      difficulty: clean(e.difficulty, 40) || null,
+      requirement: Number.isInteger(Number(e.requirement)) && Number(e.requirement) >= 1 && Number(e.requirement) <= 100 ? Number(e.requirement) : 100,
+      song: clean(e.song, 80) || null,
+      objects: Number.isInteger(Number(e.objects)) ? Number(e.objects) : null,
+      nong: clean(e.nong, 80) || null,
+      creators: clean(e.creators, 200) || null,
+    };
+    seen.add(gd);
+    const ex = byGd.get(gd);
+    if (ex) updates.push({ id: ex.id, fields, records: Array.isArray(e.records) ? e.records : [] });
+    else news.push({ fields, records: Array.isArray(e.records) ? e.records : [] });
+  }
+
+  // Records-Hilfe: nur Records hinzufügen, die noch nicht existieren
+  const recordsFor = async (levelId, incoming) => {
+    const have = (await db(env, "GET", `records?level_id=eq.${levelId}&select=player_name`)) || [];
+    const names = new Set(have.map((r) => r.player_name.toLowerCase()));
+    return incoming
+      .map((r) => ({ player: clean(r?.player, 40), progress: clean(r?.progress, 20), videoUrl: r?.videoUrl }))
+      .filter((r) => r.player && !names.has(r.player.toLowerCase()))
+      .slice(0, 50)
+      .map((r) => ({
+        level_id: levelId,
+        player_name: r.player,
+        video_url: isHttps(String(r.videoUrl || "")) ? String(r.videoUrl).slice(0, 300) : "https://www.youtube.com/",
+        notes: r.progress ? `Fortschritt beim Import: ${r.progress}` : null,
+        submitted_by: "import",
+        status: "approved",
+        approved_at: new Date().toISOString(),
+      }));
+  };
+
+  let recordsAdded = 0;
+  for (const u of updates) {
+    await db(env, "PATCH", `levels?id=eq.${u.id}`, u.fields);
+    const recs = await recordsFor(u.id, u.records);
+    if (recs.length) { await db(env, "POST", "records", recs, { prefer: "return=minimal" }); recordsAdded += recs.length; }
+  }
+  let added = 0;
+  if (news.length) {
+    const created = (await db(env, "POST", "levels", news.map((n) => ({ ...n.fields, list_id: list.id })), { prefer: "return=representation" })) || [];
+    added = created.length;
+    const idByGd = new Map(created.map((c) => [String(c.gd_level_id), c.id]));
+    for (const n of news) {
+      const id = idByGd.get(n.fields.gd_level_id);
+      if (!id || !n.records.length) continue;
+      const recs = await recordsFor(id, n.records);
+      if (recs.length) { await db(env, "POST", "records", recs, { prefer: "return=minimal" }); recordsAdded += recs.length; }
+    }
+  }
+  const missing = existing.filter((x) => !seen.has(String(x.gd_level_id))).length;
+  return { ok: true, merged: true, updated: updates.length, added, recordsAdded, notInImport: missing, skipped };
 }

@@ -290,11 +290,20 @@ function openImport(id) {
       <div class="form-actions"><button class="btn" type="button" id="imp-go">Jetzt importieren</button></div>`;
     document.getElementById("imp-go").addEventListener("click", async () => {
       msg.textContent = "Wird importiert …";
-      const r = await api("/mod/import", { method: "POST", body: { listId: x.id, levels: data } });
+      let r = await api("/mod/import", { method: "POST", body: { listId: x.id, levels: data } });
+      if (!r.ok && r.data.error === "list_not_empty") {
+        const go = confirm(`Die Liste hat schon ${r.data.count} Level.\n\nSoll die Datei zusammengeführt werden?\n• Bekannte Level (gleiche Level-ID) werden aktualisiert, ihre Records bleiben erhalten.\n• Neue Level kommen dazu.\n• Level, die im Import fehlen, bleiben unverändert.`);
+        if (!go) { msg.textContent = "Abgebrochen. Es wurde nichts geändert."; return; }
+        msg.textContent = "Wird zusammengeführt …";
+        r = await api("/mod/import", { method: "POST", body: { listId: x.id, levels: data, mode: "merge" } });
+        if (!r.ok) { msg.textContent = errText(r.data); return; }
+        const sk2 = (r.data.skipped || []).map((k) => `Platz ${k.rank ?? "?"} (${k.name ?? "?"}): ${k.reason}`).join("\n");
+        msg.textContent = `Aktualisiert: ${r.data.updated}, neu: ${r.data.added}, Records neu: ${r.data.recordsAdded}, nicht im Import: ${r.data.notInImport}.` + (sk2 ? `\n${r.data.skipped.length} übersprungen:\n${sk2}` : "");
+        renderLists();
+        return;
+      }
       if (!r.ok) {
-        msg.textContent = r.data.error === "list_not_empty"
-          ? `Die Liste hat schon ${r.data.count} Level. Import abgebrochen, damit nichts überschrieben wird.`
-          : errText(r.data);
+        msg.textContent = errText(r.data);
         return;
       }
       const sk = (r.data.skipped || []).map((k) => `Platz ${k.rank ?? "?"} (${k.name ?? "?"}): ${k.reason}`).join("\n");
