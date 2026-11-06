@@ -16,7 +16,7 @@
   app.innerHTML = `
     <section class="card settings-card">
       <div class="profile">
-        <img src="${esc(m.avatar)}" alt="" width="72" height="72">
+        <img src="${esc(m.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="" width="72" height="72" onerror="this.onerror=null;this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
         <div>
           <h2>${esc(m.discordName)}</h2>
           <small class="hint">Discord-ID ${esc(m.discordId)}</small>

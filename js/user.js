@@ -14,6 +14,7 @@
     } catch { return { loggedIn: false }; }
   }
 
+  const DEFAULT_AVATAR = "https://cdn.discordapp.com/embed/avatars/0.png";
   const MOD = ["submissions.review", "lists.manage", "notifications.manage"];
 
   async function render() {
@@ -31,7 +32,7 @@
     slot.innerHTML = `
       <div class="user-menu">
         <button class="user-btn" aria-haspopup="true" aria-expanded="false">
-          <img src="${esc(m.avatar)}" alt="" width="34" height="34">
+          <img src="${esc(m.avatar || DEFAULT_AVATAR)}" alt="" width="34" height="34" onerror="this.onerror=null;this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
           <span>${esc(m.discordName)}</span>
         </button>
         <div class="user-dropdown" hidden>
