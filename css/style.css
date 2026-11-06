@@ -1,0 +1,59 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --text: #e8eaf0;
+  --muted: #9aa3b2;
+  --accent: #f5b400;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --text: #1b1e25;
+    --muted: #5b6372;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+a { color: var(--accent); }
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--panel);
+}
+.brand { font-weight: 700; font-size: 1.2rem; color: var(--accent); text-decoration: none; }
+.topbar nav a { margin-left: 14px; text-decoration: none; }
+.container { max-width: 900px; margin: 0 auto; padding: 16px; }
+.list-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.list-tabs button {
+  background: var(--panel);
+  color: var(--text);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+.list-tabs button.active { border-color: var(--accent); }
+.level {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 12px;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.rank { font-size: 1.4rem; font-weight: 700; color: var(--accent); text-align: center; }
+.level h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.level p { margin: 0; color: var(--muted); font-size: 0.9rem; }

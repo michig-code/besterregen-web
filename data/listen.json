@@ -1,0 +1,11 @@
+{
+  "lists": [
+    {
+      "name": "Hauptliste",
+      "levels": [
+        { "name": "Beispiel-Level 1", "creator": "Creator" },
+        { "name": "Beispiel-Level 2", "creator": "Creator" }
+      ]
+    }
+  ]
+}
