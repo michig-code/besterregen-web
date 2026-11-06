@@ -199,3 +199,12 @@ h2 { font-size: 1.4rem; margin: 0 0 16px; }
   .level { grid-template-columns: 52px 1fr; padding: 14px; }
   .rank { height: 44px; }
 }
+
+/* Logo in der Kopfzeile */
+.brand { display: inline-flex; align-items: center; gap: 10px; }
+.brand img {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  box-shadow: 0 0 16px rgba(56, 232, 255, 0.35);
+}
