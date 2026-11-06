@@ -581,3 +581,15 @@ a.level-link .rank { min-height: 56px; height: auto; }
 .rules-intro { margin-bottom: 18px; border-left: 4px solid var(--accent, #f5b400); }
 .rules-intro p { margin: 0; }
 .tip { margin: 22px 0 6px; padding: 14px 16px; border-radius: 12px; background: rgba(124,255,107,.08); border: 1px solid rgba(124,255,107,.35); color: var(--text); }
+
+/* ---------- Sprache DE / EN ---------- */
+.en, .en-block { display: none; }
+html[data-lang="en"] .en { display: inline; }
+html[data-lang="en"] .en-block { display: block; }
+html[data-lang="en"] .de, html[data-lang="en"] .de-block { display: none; }
+.lang-btn {
+  font: inherit; font-weight: 800; font-size: .8rem; cursor: pointer; color: var(--text);
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 999px;
+  padding: 7px 12px; margin-right: 6px; transition: border-color .2s ease;
+}
+.lang-btn:hover { border-color: var(--purple); }

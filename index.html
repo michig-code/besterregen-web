@@ -9,24 +9,26 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <script>try{if(localStorage.getItem('br_lang')==='en')document.documentElement.dataset.lang='en'}catch(e){}</script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="index.html"><img src="assets/logo.webp" alt="" width="32" height="32">Bester Regen</a>
     <nav>
-      <a href="index.html">Listen</a>
-      <a href="stats.html">Statistiken</a>
-      <a href="regeln.html">Regeln</a>
-      <a href="einreichen.html" class="cta">Einsenden</a>
+      <a href="index.html"><span class="de">Listen</span><span class="en">Lists</span></a>
+      <a href="stats.html"><span class="de">Statistiken</span><span class="en">Statistics</span></a>
+      <a href="regeln.html"><span class="de">Regeln</span><span class="en">Rules</span></a>
+      <a href="einreichen.html" class="cta"><span class="de">Einsenden</span><span class="en">Submit</span></a>
       <a href="support.html">Support</a>
+      <button class="lang-btn" id="lang-btn" type="button" aria-label="Sprache wechseln">EN</button>
       <div id="user-slot" class="user-slot"><span class="user-skel" aria-hidden="true"></span></div>
     </nav>
   </header>
 
   <section class="hero">
-    <span class="eyebrow">Deutsche Geometry Dash Community</span>
+    <span class="eyebrow"><span class="de">Deutsche Geometry Dash Community</span><span class="en">German Geometry Dash community</span></span>
     <h1>Bester Regen</h1>
-    <p>Die besten Level unserer Community.</p>
+    <p><span class="de">Die besten Level unserer Community.</span><span class="en">The best levels of our community.</span></p>
   </section>
 
   <div class="page-grid">
@@ -38,18 +40,18 @@
     </main>
     <aside class="sidebar">
       <section class="card side-card" id="team-card">
-        <h3>Listenteam</h3>
+        <h3><span class="de">Listenteam</span><span class="en">List team</span></h3>
         <p class="hint">Lädt …</p>
       </section>
       <section class="card side-card">
-        <h3>Einsenden</h3>
-        <p class="hint">Level oder Record einsenden. Jeder Eintrag wird von Hand geprüft.</p>
-        <a class="btn full" href="einreichen.html">Jetzt einsenden</a>
+        <h3><span class="de">Einsenden</span><span class="en">Submit</span></h3>
+        <p class="hint"><span class="de">Level oder Record einsenden. Jeder Eintrag wird von Hand geprüft.</span><span class="en">Submit a level or record. Every entry is checked by hand.</span></p>
+        <a class="btn full" href="einreichen.html"><span class="de">Jetzt einsenden</span><span class="en">Submit now</span></a>
       </section>
       <section class="card side-card">
-        <h3>Regeln</h3>
+        <h3><span class="de">Regeln</span><span class="en">Rules</span></h3>
         <p class="hint">Bitte vor dem Einsenden lesen. Was gegen die Regeln verstößt, wird abgelehnt.</p>
-        <a class="btn ghost full" href="regeln.html">Zu den Regeln</a>
+        <a class="btn ghost full" href="regeln.html"><span class="de">Zu den Regeln</span><span class="en">Read the rules</span></a>
       </section>
       <section class="card side-card">
         <h3>Discord</h3>
@@ -58,9 +60,9 @@
         <a class="btn discord full" href="https://discord.besterregen.de" target="_blank" rel="noopener">Discord beitreten</a>
       </section>
       <section class="card side-card">
-        <h3>Statistiken</h3>
+        <h3><span class="de">Statistiken</span><span class="en">Statistics</span></h3>
         <p class="hint">Wer hat die meisten Punkte? Wer hat die meisten Level erstellt?</p>
-        <a class="btn ghost full" href="stats.html">Zur Rangliste</a>
+        <a class="btn ghost full" href="stats.html"><span class="de">Zur Rangliste</span><span class="en">Go to the ranking</span></a>
       </section>
     </aside>
   </div>
@@ -69,14 +71,14 @@
     <div class="foot-inner">
       <span>© 2026 Bester Regen</span>
       <nav>
-        <a href="index.html">Listen</a>
-        <a href="stats.html">Statistiken</a>
-        <a href="regeln.html">Regeln</a>
-        <a href="einreichen.html">Einsenden</a>
+        <a href="index.html"><span class="de">Listen</span><span class="en">Lists</span></a>
+        <a href="stats.html"><span class="de">Statistiken</span><span class="en">Statistics</span></a>
+        <a href="regeln.html"><span class="de">Regeln</span><span class="en">Rules</span></a>
+        <a href="einreichen.html"><span class="de">Einsenden</span><span class="en">Submit</span></a>
         <a href="support.html">Support</a>
         <a href="https://discord.besterregen.de" target="_blank" rel="noopener">Discord</a>
-        <a href="datenschutz.html">Datenschutz</a>
-        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html"><span class="de">Datenschutz</span><span class="en">Privacy</span></a>
+        <a href="impressum.html"><span class="de">Impressum</span><span class="en">Legal notice</span></a>
       </nav>
     </div>
   </footer>
@@ -84,5 +86,6 @@
   <script src="js/app.js"></script>
   <script src="js/discord.js"></script>
   <script src="js/user.js"></script>
+  <script src="js/lang.js"></script>
 </body>
 </html>

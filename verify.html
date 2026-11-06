@@ -9,15 +9,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <script>try{if(localStorage.getItem('br_lang')==='en')document.documentElement.dataset.lang='en'}catch(e){}</script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="index.html"><img src="assets/logo.webp" alt="" width="32" height="32">Bester Regen</a>
     <nav>
-      <a href="index.html">Listen</a>
+      <a href="index.html"><span class="de">Listen</span><span class="en">Lists</span></a>
       <a href="verify.html" class="cta">Verifizieren</a>
       <a href="https://discord.besterregen.de" class="discord" target="_blank" rel="noopener">Discord beitreten</a>
       <a href="support.html">Support</a>
+      <button class="lang-btn" id="lang-btn" type="button" aria-label="Sprache wechseln">EN</button>
       <div id="user-slot" class="user-slot"><span class="user-skel" aria-hidden="true"></span></div>
     </nav>
   </header>
@@ -37,18 +39,19 @@
     <div class="foot-inner">
       <span>© 2026 Bester Regen</span>
       <nav>
-        <a href="index.html">Listen</a>
-        <a href="stats.html">Statistiken</a>
-        <a href="regeln.html">Regeln</a>
-        <a href="einreichen.html">Einsenden</a>
+        <a href="index.html"><span class="de">Listen</span><span class="en">Lists</span></a>
+        <a href="stats.html"><span class="de">Statistiken</span><span class="en">Statistics</span></a>
+        <a href="regeln.html"><span class="de">Regeln</span><span class="en">Rules</span></a>
+        <a href="einreichen.html"><span class="de">Einsenden</span><span class="en">Submit</span></a>
         <a href="support.html">Support</a>
         <a href="https://discord.besterregen.de" target="_blank" rel="noopener">Discord</a>
-        <a href="datenschutz.html">Datenschutz</a>
-        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html"><span class="de">Datenschutz</span><span class="en">Privacy</span></a>
+        <a href="impressum.html"><span class="de">Impressum</span><span class="en">Legal notice</span></a>
       </nav>
     </div>
   </footer>
   <script src="js/verify.js"></script>
   <script src="js/user.js"></script>
+  <script src="js/lang.js"></script>
 </body>
 </html>
