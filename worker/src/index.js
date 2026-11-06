@@ -99,7 +99,7 @@ async function authCallback(url, env) {
   const me = await discordGet("/users/@me", token.access_token);
   await db(env, "POST", "users", {
     discord_id: me.id,
-    name: me.global_name || me.username,
+    name: cleanName(me.global_name || me.username, me.username),
     avatar: me.avatar || null,
     last_login: new Date().toISOString(),
   }, { upsert: true });
@@ -144,7 +144,7 @@ async function currentUser(request, env) {
   return {
     loggedIn: true,
     discordId: session.discord_id,
-    discordName: profile?.name || session.discord_name,
+    discordName: cleanName(profile?.name || session.discord_name, "Mitglied"),
     avatar: profile?.avatar
       ? `https://cdn.discordapp.com/avatars/${session.discord_id}/${profile.avatar}.png?size=64`
       : "https://cdn.discordapp.com/embed/avatars/0.png",
@@ -397,4 +397,14 @@ async function discordStats(env) {
   } catch {
     return discordCache.data || { error: "unavailable" };
   }
+}
+
+// Anzeigename bereinigen: nur Buchstaben, Zahlen, Leerzeichen und einfache Satzzeichen
+function cleanName(name, fallback) {
+  const cleaned = String(name || "")
+    .replace(/[^\p{L}\p{N} ._\-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32);
+  return cleaned || String(fallback || "Mitglied").slice(0, 32);
 }
