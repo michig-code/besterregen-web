@@ -32,6 +32,7 @@ export default {
       if (url.pathname === "/verify/check" && request.method === "POST")
         return json(await verifyCheck(request, env), 200, cors);
       if (url.pathname === "/logout") return logout(env);
+      if (url.pathname === "/health") return json(await health(env), 200, cors);
       return json({ error: "not_found" }, 404, cors);
     } catch (err) {
       console.error(err);
@@ -321,4 +322,23 @@ function json(data, status = 200, extra = {}) {
     status,
     headers: { "Content-Type": "application/json", ...extra },
   });
+}
+
+// Prüfseite: zeigt nur Ja/Nein, keine Geheimnisse
+async function health(env) {
+  const out = {
+    discordClientId: !!env.DISCORD_CLIENT_ID,
+    discordSecret: !!env.DISCORD_CLIENT_SECRET,
+    supabaseUrl: !!env.SUPABASE_URL,
+    supabaseKey: !!env.SUPABASE_SERVICE_KEY,
+    apiUrl: env.API_URL,
+    siteUrl: env.SITE_URL,
+  };
+  try {
+    await db(env, "GET", "sessions?select=id&limit=1");
+    out.supabaseTableSessions = "ok";
+  } catch (e) {
+    out.supabaseTableSessions = String(e.message || e);
+  }
+  return out;
 }
