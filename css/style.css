@@ -320,3 +320,41 @@ a.level-link:hover { color: inherit; }
 .role-form input[type="file"] { color: var(--muted); }
 .role-form input[type="number"] { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 12px; }
 @media (max-width: 600px) { .queue-item { flex-direction: column; } .queue-item .thumb { width: 100%; height: auto; aspect-ratio: 16/9; } }
+
+/* ---------- Profil-Menü ---------- */
+.user-menu { position: relative; }
+.user-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: inherit; font-weight: 700; color: var(--text); cursor: pointer;
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: 999px; padding: 4px 14px 4px 4px;
+  transition: border-color .2s ease, transform .15s ease;
+}
+.user-btn:hover { border-color: var(--purple); transform: translateY(-1px); }
+.user-btn img { border-radius: 50%; display: block; }
+.user-btn span { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-dropdown {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 20;
+  min-width: 230px; display: flex; flex-direction: column; padding: 8px;
+  background: var(--bg-2); border: 1px solid var(--panel-border);
+  border-radius: 14px; box-shadow: var(--shadow);
+  animation: fadeUp .18s ease both;
+}
+.user-dropdown[hidden] { display: none; }
+.user-dropdown a, .user-dropdown .ud-logout {
+  font: inherit; color: var(--text); text-align: left; background: none; border: 0;
+  padding: 9px 12px; border-radius: 10px; cursor: pointer; text-decoration: none;
+}
+.user-dropdown a:hover, .user-dropdown .ud-logout:hover { background: var(--panel); color: var(--green); }
+.user-dropdown .ud-logout { color: #ff7a9c; }
+.ud-head { display: flex; flex-direction: column; padding: 8px 12px 10px; border-bottom: 1px solid var(--panel-border); margin-bottom: 6px; }
+.ud-head small { color: var(--muted); }
+.btn.small { padding: 8px 16px; font-size: .9rem; }
+.settings-card { margin-bottom: 18px; }
+.settings-card h2, .settings-card h3 { margin-top: 0; }
+.profile { display: flex; align-items: center; gap: 18px; }
+.profile img { border-radius: 50%; border: 2px solid var(--purple); }
+.profile h2 { margin: 0 0 4px; }
+.perm-list { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+.perm-list li { margin-bottom: 6px; }
+@media (max-width: 600px) { .user-btn span { display: none; } .user-btn { padding: 3px; } }

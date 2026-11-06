@@ -40,6 +40,8 @@ export default {
       }
       if (url.pathname.startsWith("/admin/"))
         return await handleAdmin(request, url, env, { getSession, json, cors });
+      if (url.pathname === "/logout" && request.method === "POST")
+        return json(await logoutSession(request, env), 200, cors);
       if (url.pathname === "/logout") return logout(env);
       if (url.pathname === "/health") return json(await health(env), 200, cors);
       if (url.pathname === "/verify/status" && request.method === "GET")
@@ -134,9 +136,14 @@ async function currentUser(request, env) {
   }
 
   const link = await getGdLink(env, session.discord_id);
+  const profile = (await db(env, "GET", `users?discord_id=eq.${session.discord_id}&select=name,avatar`))?.[0];
   return {
     loggedIn: true,
-    discordName: session.discord_name,
+    discordId: session.discord_id,
+    discordName: profile?.name || session.discord_name,
+    avatar: profile?.avatar
+      ? `https://cdn.discordapp.com/avatars/${session.discord_id}/${profile.avatar}.png?size=64`
+      : "https://cdn.discordapp.com/embed/avatars/0.png",
     roles,
     gdName: link ? link.gd_name : null,
     permissions: await getUserPermissions(env, session.discord_id),
@@ -332,4 +339,16 @@ async function verifyStatus(request, env) {
   const pending = rows && rows[0];
   if (!pending || new Date(pending.expires_at) < new Date()) return { code: null };
   return { code: pending.code, levelId: env.VERIFY_LEVEL_ID, expiresAt: pending.expires_at };
+}
+
+// Sitzung in der Datenbank löschen (Token aus Header oder Cookie)
+async function logoutSession(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  const cookie = request.headers.get("Cookie") || "";
+  const m = cookie.match(new RegExp(`${COOKIE}=([^;]+)`));
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : m && m[1];
+  if (token && /^[a-f0-9]{64}$/.test(token)) {
+    await db(env, "DELETE", `sessions?id=eq.${token}`);
+  }
+  return { ok: true };
 }
