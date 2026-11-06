@@ -38,6 +38,8 @@ export default {
         const r = await handleContent(request, url, env, { getSession, json, cors });
         if (r) return r;
       }
+      if (url.pathname === "/gd/unlink" && request.method === "POST")
+        return json(await gdUnlink(request, env), 200, cors);
       if (url.pathname.startsWith("/admin/"))
         return await handleAdmin(request, url, env, { getSession, json, cors });
       if (url.pathname === "/logout" && request.method === "POST")
@@ -353,5 +355,13 @@ async function logoutSession(request, env) {
   if (token && /^[a-f0-9]{64}$/.test(token)) {
     await db(env, "DELETE", `sessions?id=eq.${token}`);
   }
+  return { ok: true };
+}
+
+// GD-Verknüpfung entfernen (der Account bleibt optional)
+async function gdUnlink(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return { error: "not_logged_in" };
+  await db(env, "DELETE", `gd_links?discord_id=eq.${session.discord_id}`);
   return { ok: true };
 }

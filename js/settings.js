@@ -29,7 +29,14 @@
       ${m.gdName
         ? `<p>Verknüpft mit <strong>${esc(m.gdName)}</strong>.</p>`
         : `<p>Noch nicht verknüpft.</p>`}
-      <p><a class="btn" href="verify.html">${m.gdName ? "Verknüpfung prüfen" : "GD-Account verknüpfen"}</a></p>
+      <p class="hint">Optional. Du kannst die Seite auch ohne GD-Account nutzen.</p>
+      <div class="form-actions">
+        ${m.gdName
+          ? `<a class="btn ghost" href="verify.html">Neu verknüpfen</a>
+             <button class="btn ghost danger-btn" id="unlink-btn" type="button">Verknüpfung entfernen</button>`
+          : `<a class="btn" href="verify.html">GD-Account verknüpfen</a>`}
+      </div>
+      <p class="hint" id="gd-msg"></p>
     </section>
 
     <section class="card settings-card">
@@ -44,6 +51,14 @@
       <p class="hint">Abmelden löscht die Sitzung auf dem Server und auf diesem Gerät.</p>
       <button class="btn ghost" id="logout-btn">Abmelden</button>
     </section>`;
+
+  const unlink = document.getElementById("unlink-btn");
+  if (unlink) unlink.addEventListener("click", async () => {
+    if (!confirm("GD-Verknüpfung wirklich entfernen?")) return;
+    const r = await api("/gd/unlink", { method: "POST" });
+    if (!r.ok) { document.getElementById("gd-msg").textContent = errText(r.data); return; }
+    location.reload();
+  });
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
     await api("/logout", { method: "POST" }).catch(() => {});
