@@ -169,7 +169,7 @@ export async function handleContent(request, url, env, ctx) {
     if (!name || !creator || !verifier) return json({ error: "missing_fields" }, 400);
     if (!/^\d{1,12}$/.test(gdLevelId)) return json({ error: "invalid_level_id" }, 400);
     if (!isHttps(videoUrl)) return json({ error: "invalid_video" }, 400);
-    if (!imageUrl.startsWith(`${env.SUPABASE_URL}/storage/v1/object/public/uploads/`)) return json({ error: "image_required" }, 400);
+    if (imageUrl && !imageUrl.startsWith(`${env.SUPABASE_URL}/storage/v1/object/public/uploads/`)) return json({ error: "invalid_image" }, 400);
     if (!UUID.test(listId || "")) return json({ error: "invalid_list" }, 400);
     const lists = await db(env, "GET", `lists?id=eq.${listId}&select=id,name,max_duration_seconds`);
     if (!lists || !lists[0]) return json({ error: "invalid_list" }, 400);
@@ -179,7 +179,7 @@ export async function handleContent(request, url, env, ctx) {
 
     const rows = await db(env, "POST", "level_submissions", {
       list_id: listId, name, creator, verifier, gd_level_id: gdLevelId, video_url: videoUrl,
-      image_url: imageUrl, duration_seconds: duration, submitted_by: session.discord_id,
+      image_url: imageUrl || null, duration_seconds: duration, submitted_by: session.discord_id,
       submitter_name: session.discord_name, status: "pending",
     }, { prefer: "return=representation" });
 

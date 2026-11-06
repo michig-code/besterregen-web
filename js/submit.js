@@ -34,8 +34,8 @@
         <label>GD-Level-ID <input name="gdLevelId" inputmode="numeric" maxlength="12" required></label>
         <label>Länge in Sekunden <input name="durationSeconds" type="number" min="1" required></label>
         <label>Video-Link <input name="videoUrl" type="url" maxlength="300" placeholder="https://…" required></label>
-        <label>Bild (Pflicht, max. 2 MB)
-          <input name="image" type="file" accept="image/jpeg,image/png,image/webp" required>
+        <label>Bild (optional, max. 2 MB)
+          <input name="image" type="file" accept="image/jpeg,image/png,image/webp">
         </label>
         <div class="form-actions"><button class="btn" type="submit">Level einreichen</button></div>
         <p class="hint" data-msg></p>
@@ -90,14 +90,18 @@
     const msg = form.querySelector("[data-msg]");
     const f = Object.fromEntries(new FormData(form));
     const file = form.image.files[0];
-    msg.textContent = "Bild wird hochgeladen …";
-    const up = await api("/upload", { method: "POST", headers: { "Content-Type": file.type }, body: file });
-    if (!up.ok) { msg.textContent = errText(up.data); return; }
+    let imageUrl = "";
+    if (file) {
+      msg.textContent = "Bild wird hochgeladen …";
+      const up = await api("/upload", { method: "POST", headers: { "Content-Type": file.type }, body: file });
+      if (!up.ok) { msg.textContent = errText(up.data); return; }
+      imageUrl = up.data.url;
+    }
     msg.textContent = "Level wird eingereicht …";
     const res = await api("/submit/level", { method: "POST", body: {
       listId: f.listId, name: f.name, creator: f.creator, verifier: f.verifier,
       gdLevelId: f.gdLevelId, durationSeconds: Number(f.durationSeconds), videoUrl: f.videoUrl,
-      imageUrl: up.data.url,
+      imageUrl,
     }});
     if (!res.ok) { msg.textContent = errText(res.data); return; }
     form.reset();

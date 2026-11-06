@@ -33,7 +33,7 @@ const ERRORS = {
   missing_fields: "Bitte alle Pflichtfelder ausfüllen.",
   invalid_level_id: "Die Level-ID ist ungültig (nur Ziffern).",
   invalid_video: "Der Video-Link muss mit https:// beginnen.",
-  image_required: "Bitte ein Bild hochladen.",
+  invalid_image: "Das Bild ist ungültig. Bitte erneut hochladen.",
   invalid_list: "Bitte eine Liste auswählen.",
   invalid_duration: "Bitte die Länge in Sekunden angeben.",
   too_long: "Das Level ist zu lang für diese Liste (maximal {max} Sekunden).",
