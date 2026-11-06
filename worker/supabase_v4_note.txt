@@ -1,0 +1,1 @@
+Hinweis: supabase_v4.sql im Ordner worker ausführen (Spalte max_places).

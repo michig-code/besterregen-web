@@ -15,11 +15,37 @@
     <a class="brand" href="index.html"><img src="assets/logo.webp" alt="" width="32" height="32">Besterregen</a>
     <nav>
       <a href="index.html">Listen</a>
+      <a href="stats.html">Statistiken</a>
+      <a href="regeln.html">Regeln</a>
       <a href="einreichen.html" class="cta">Einreichen</a>
       <div id="user-slot"></div>
     </nav>
   </header>
-  <main class="container" id="app"><p class="status">Lädt …</p></main>
+  <div class="page-grid">
+    <main class="container main-col" id="app"><p class="status">Lädt …</p></main>
+    <aside class="sidebar">
+      <section class="card side-card">
+        <h3>Einreichen</h3>
+        <p class="hint">Level oder Record einreichen. Jeder Eintrag wird von Hand geprüft.</p>
+        <a class="btn full" href="einreichen.html">Jetzt einreichen</a>
+      </section>
+      <section class="card side-card">
+        <h3>Regeln</h3>
+        <p class="hint">Bitte vor dem Einreichen lesen. Was gegen die Regeln verstößt, wird abgelehnt.</p>
+        <a class="btn ghost full" href="regeln.html">Zu den Regeln</a>
+      </section>
+      <section class="card side-card">
+        <h3>Discord</h3>
+        <p class="hint">Hier wird diskutiert und neue Einreichungen werden angekündigt.</p>
+        <a class="btn discord full" href="https://discord.besterregen.de" target="_blank" rel="noopener">Discord beitreten</a>
+      </section>
+      <section class="card side-card">
+        <h3>Statistiken</h3>
+        <p class="hint">Wer hat die meisten Punkte? Wer hat die meisten Level erstellt?</p>
+        <a class="btn ghost full" href="stats.html">Zur Rangliste</a>
+      </section>
+    </aside>
+  </div>
   <script src="js/common.js"></script>
   <script src="js/level.js"></script>
   <script src="js/user.js"></script>

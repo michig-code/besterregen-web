@@ -1,4 +1,4 @@
-// Level-Detailseite mit bestätigten Records
+// Level-Detailseite: Infos, Punkte, Video (erst nach Klick), Records
 (async function () {
   const app = document.getElementById("app");
   const id = new URLSearchParams(location.search).get("id");
@@ -9,21 +9,56 @@
   const { level, records } = res.data;
   document.title = `${level.name} – Besterregen`;
 
-  const gdLink = `https://gdbrowser.com/${encodeURIComponent(level.gd_level_id)}`;
+  const yt = (url) => {
+    const m = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  };
+  const ytId = yt(level.video_url);
+  const videoBlock = ytId
+    ? `<div class="video-box" id="video">
+         <button class="video-play" type="button" data-yt="${esc(ytId)}" aria-label="Video laden">▶</button>
+         <p class="hint">Klicke, um das Video von YouTube zu laden. Vorher wird nichts an Google übertragen.</p>
+       </div>`
+    : `<p><a class="btn" href="${esc(level.video_url)}" target="_blank" rel="noopener">Video ansehen</a></p>`;
+
   app.innerHTML = `
-    <section class="card level-detail">
+    <section class="card level-hero">
       ${level.image_url ? `<img class="level-img" src="${esc(level.image_url)}" alt="">` : ""}
       <div class="level-meta">
-        <span class="eyebrow">Platz #${esc(level.position)}</span>
+        <span class="eyebrow">${esc(level.listName || "Liste")} · Platz #${esc(level.position)}</span>
         <h1>${esc(level.name)}</h1>
-        <p>von <strong>${esc(level.creator)}</strong> · verifiziert von <strong>${esc(level.verifier)}</strong></p>
-        <p class="hint">Level-ID ${esc(level.gd_level_id)}${level.duration_seconds ? ` · ${esc(level.duration_seconds)} s` : ""}</p>
+        <p>von <strong>${esc(level.creator)}</strong></p>
+        <p class="points-big">${esc(level.points)} <span>Punkte</span></p>
         <div class="form-actions">
-          <a class="btn" href="${esc(level.video_url)}" target="_blank" rel="noopener">Video ansehen</a>
-          <a class="btn ghost" href="${esc(gdLink)}" target="_blank" rel="noopener">Im Browser öffnen</a>
           <a class="btn ghost" href="einreichen.html?record=${esc(level.id)}">Record einreichen</a>
         </div>
       </div>
+    </section>
+
+    <div class="info-grid">
+      <section class="card">
+        <h2>Level-Infos</h2>
+        <table class="info-table">
+          <tr><th>Position</th><td>#${esc(level.position)}</td></tr>
+          <tr><th>Liste</th><td>${esc(level.listName || "–")}</td></tr>
+          <tr><th>Creator</th><td>${esc(level.creator)}</td></tr>
+          <tr><th>Verifier</th><td>${esc(level.verifier)}</td></tr>
+          <tr><th>Level-ID</th><td>${esc(level.gd_level_id)}</td></tr>
+          <tr><th>Länge</th><td>${level.duration_seconds ? esc(level.duration_seconds) + " s" : "–"}</td></tr>
+        </table>
+      </section>
+      <section class="card">
+        <h2>Punkte</h2>
+        <table class="info-table">
+          <tr><th>Punkte</th><td>${esc(level.points)}</td></tr>
+          <tr><th>Completions</th><td>${esc(level.completions)}</td></tr>
+        </table>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Verifizierungs-Video</h2>
+      ${videoBlock}
     </section>
 
     <section class="card">
@@ -35,6 +70,13 @@
               <strong>${esc(r.player_name)}</strong>
               <a href="${esc(r.video_url)}" target="_blank" rel="noopener">Video</a>
             </div>`).join("")}
-        </div>` : '<p class="hint">Noch keine bestätigten Records.</p>'}
+        </div>` : `<p class="hint">Noch keine bestätigten Records. <a href="einreichen.html?record=${esc(level.id)}">Sei der Erste!</a></p>`}
     </section>`;
+
+  const play = app.querySelector(".video-play");
+  if (play) play.addEventListener("click", () => {
+    const box = document.getElementById("video");
+    box.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(play.dataset.yt)}?autoplay=1"
+      title="Verifizierungs-Video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
+  });
 })();

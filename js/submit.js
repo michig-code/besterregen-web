@@ -14,6 +14,7 @@
   const startTab = preRecord ? "record" : "level";
 
   app.innerHTML = `
+    <p class="hint rules-hint">Bitte vorher die <a href="regeln.html">Einreichungs-Regeln</a> lesen.</p>
     <div class="tabs-row">
       <button class="chip-btn ${startTab === "level" ? "on" : ""}" data-tab="level">Level einreichen</button>
       <button class="chip-btn ${startTab === "record" ? "on" : ""}" data-tab="record">Record einreichen</button>
