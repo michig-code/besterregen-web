@@ -477,6 +477,8 @@ export async function handleContent(request, url, env, ctx) {
         verifier: clean(e.verifier, 60) || clean(e.publisher, 60) || "Unbekannt",
         gd_level_id: gd,
         video_url: /^[\w-]{11}$/.test(vid) ? `https://www.youtube.com/watch?v=${vid}` : "https://www.youtube.com/",
+        // Vorschaubild direkt von YouTube, damit wir kein Bild speichern müssen
+        image_url: /^[\w-]{11}$/.test(vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null,
         duration_seconds: dur,
         difficulty: clean(e.difficulty, 40) || null,
         requirement: Number.isInteger(Number(e.requirement)) && Number(e.requirement) >= 1 && Number(e.requirement) <= 100 ? Number(e.requirement) : 100,
