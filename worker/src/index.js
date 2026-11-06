@@ -91,7 +91,7 @@ async function authCallback(url, env) {
     status: 302,
     headers: {
       Location: `${env.SITE_URL}/verify.html`,
-      "Set-Cookie": `${COOKIE}=${sessionId}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`,
+      "Set-Cookie": `${COOKIE}=${sessionId}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
     },
   });
 }
@@ -220,9 +220,10 @@ function parseFields(entry) {
 function parseUsers(part) {
   const map = {};
   part.split("|").filter(Boolean).forEach((entry) => {
-    const f = parseFields(entry);
-    if (f["1"] && f["16"]) {
-      map[f["1"]] = { userName: f["1"] ? f["1"] : "", accountId: f["16"] };
+    // Format der Benutzerdaten: userName:playerID:accountID (inoffiziell, muss live geprüft werden)
+    const [userName, playerId, accountId] = entry.split(":");
+    if (userName && playerId && accountId) {
+      map[playerId] = { userName, accountId };
     }
   });
   return map;
@@ -288,7 +289,7 @@ function logout(env) {
     status: 302,
     headers: {
       Location: env.SITE_URL,
-      "Set-Cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
+      "Set-Cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`,
     },
   });
 }
