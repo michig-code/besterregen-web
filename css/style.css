@@ -413,3 +413,37 @@ a.level-link:hover { color: inherit; }
 .stats-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .stats-table .rank-cell { font-weight: 900; color: var(--accent, #f5b400); width: 48px; }
 .stats-table tbody tr:hover { background: rgba(255,255,255,.03); }
+
+/* ---------- Überarbeitung Listen-Layout (flexibel, Solar-Flare-Stil) ---------- */
+/* Hauptspalte füllt die Breite aus (auto-Ränder hatten sie schrumpfen lassen) */
+.page-grid .main-col { margin: 0; width: 100%; justify-self: stretch; max-width: none; }
+
+/* Level-Karte: großes Bild links, Infos rechts; auf dem Handy untereinander */
+a.level-link.level {
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 14px;
+  align-items: start;
+}
+@media (min-width: 600px) {
+  a.level-link.level { grid-template-columns: 220px minmax(0, 1fr); gap: 22px; padding: 16px; align-items: center; }
+}
+a.level-link .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--panel-border);
+}
+a.level-link .rank { min-height: 56px; height: auto; }
+.level-text { min-width: 0; }
+.level-text h3 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 6px; overflow-wrap: anywhere; }
+.level-text p { font-size: .95rem; margin: 2px 0; overflow-wrap: anywhere; }
+.level-text .points { font-size: 1.05rem; margin-top: 10px; }
+.level-text h3 .pos { color: var(--accent, #f5b400); margin-right: 6px; }
+
+/* Suche und Tabs passen sich der Breite an */
+.list-tabs { flex-wrap: wrap; }
+.list-tabs button { min-width: 0; }
+.search { max-width: 100%; }
