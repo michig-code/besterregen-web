@@ -5,7 +5,22 @@
   const esc = (s) => { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; };
   const token = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
 
-  async function me() {
+  // Antwort kurz im Browser merken, damit das Profil beim Neuladen sofort erscheint
+  const CACHE_KEY = "br_me";
+  const CACHE_MS = 10 * 60 * 1000;
+  function readCache() {
+    try {
+      const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+      return c && Date.now() - c.at < CACHE_MS ? c.data : null;
+    } catch { return null; }
+  }
+  function writeCache(data) {
+    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data })); } catch {}
+  }
+  function clearCache() {
+    try { sessionStorage.removeItem(CACHE_KEY); } catch {}
+  }
+  async function fetchMe() {
     const h = {};
     if (token()) h.Authorization = "Bearer " + token();
     try {
@@ -17,10 +32,25 @@
   const DEFAULT_AVATAR = "https://cdn.discordapp.com/embed/avatars/0.png";
   const MOD = ["submissions.review", "lists.manage", "notifications.manage"];
 
+  let shownKey = "";
+  function paint(slot, m) {
+    const key = JSON.stringify(m);
+    if (key === shownKey) return; // nichts geändert, nichts neu zeichnen
+    shownKey = key;
+    drawSlot(slot, m);
+  }
+
   async function render() {
     const slot = document.getElementById("user-slot");
     if (!slot) return;
-    const m = await me();
+    const cached = readCache();
+    if (cached) paint(slot, cached);
+    const m = await fetchMe();
+    if (m && m.loggedIn !== undefined) writeCache(m);
+    paint(slot, m);
+  }
+
+  function drawSlot(slot, m) {
     if (!m.loggedIn) {
       slot.innerHTML = '<a class="btn small" href="verify.html">Anmelden</a>';
       return;
@@ -66,6 +96,7 @@
         await fetch(API + "/logout", { method: "POST", headers: token() ? { Authorization: "Bearer " + token() } : {}, credentials: "include" });
       } catch {}
       try { localStorage.removeItem(KEY); } catch {}
+      clearCache();
       location.href = "index.html";
     });
   }
