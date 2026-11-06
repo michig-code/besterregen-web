@@ -97,36 +97,65 @@ export async function handleContent(request, url, env, ctx) {
     });
   }
 
-  // Statistik: Spieler nach Punkten, Completions und erstellten Levels
+  // Rangliste: nur verifizierte GD-Accounts, die mindestens ein Listen-Level geschafft haben.
+  // Punkte = Summe der Punkte je Level (jedes Level zählt einmal). Gleiche Punkte = gleicher Platz.
   if (path === "/stats" && method === "GET") {
-    const [levels, lists, records] = await Promise.all([
+    const [links, users, levels, lists, records] = await Promise.all([
+      db(env, "GET", "gd_links?select=discord_id,gd_name"),
+      db(env, "GET", "users?select=discord_id,avatar"),
       db(env, "GET", "levels?select=id,list_id,position,creator"),
       db(env, "GET", "lists?select=id,max_places"),
-      db(env, "GET", "records?status=eq.approved&select=player_name,level_id"),
+      db(env, "GET", "records?status=eq.approved&select=level_id,submitted_by"),
     ]);
+    const gdByDiscord = new Map((links || []).map((l) => [l.discord_id, l.gd_name]));
+    const avatarByDiscord = new Map((users || []).map((u) => [u.discord_id, u.avatar]));
     const listById = Object.fromEntries((lists || []).map((l) => [l.id, l]));
     const levelById = Object.fromEntries((levels || []).map((l) => [l.id, l]));
-    const players = new Map();
-    const get = (name) => {
-      const k = name.trim().toLowerCase();
-      if (!players.has(k)) players.set(k, { name: name.trim(), points: 0, completions: 0, created: 0 });
-      return players.get(k);
-    };
+
+    // pro Discord-Konto: welche Level geschafft wurden (jedes Level nur einmal)
+    const done = new Map();
     for (const r of records || []) {
+      const gd = gdByDiscord.get(r.submitted_by);
       const lv = levelById[r.level_id];
-      if (!lv || !r.player_name) continue;
-      const pl = get(r.player_name);
-      pl.completions += 1;
-      pl.points += pointsFor(lv.position, listById[lv.list_id]?.max_places);
+      if (!gd || !lv) continue;
+      if (!done.has(r.submitted_by)) done.set(r.submitted_by, new Set());
+      done.get(r.submitted_by).add(r.level_id);
     }
-    for (const lv of levels || []) {
-      if (lv.creator) get(lv.creator).created += 1;
+
+    const rows = [];
+    for (const [discordId, levelIds] of done) {
+      const gd = gdByDiscord.get(discordId);
+      let points = 0;
+      for (const lid of levelIds) {
+        const lv = levelById[lid];
+        points += pointsFor(lv.position, listById[lv.list_id]?.max_places);
+      }
+      const created = (levels || []).filter((lv) => lv.creator && lv.creator.trim().toLowerCase() === gd.trim().toLowerCase()).length;
+      rows.push({
+        discordId,
+        name: gd,
+        avatar: avatarByDiscord.get(discordId)
+          ? `https://cdn.discordapp.com/avatars/${discordId}/${avatarByDiscord.get(discordId)}.png?size=64`
+          : null,
+        points: Math.round(points * 100) / 100,
+        completions: levelIds.size,
+        created,
+      });
     }
-    const out = [...players.values()]
-      .map((p) => ({ ...p, points: Math.round(p.points * 100) / 100 }))
-      .sort((a, b) => b.points - a.points || b.completions - a.completions)
-      .slice(0, 300);
-    return json({ players: out });
+
+    rows.sort((x, y) => y.points - x.points || y.completions - x.completions || x.name.localeCompare(y.name, "de"));
+    // Gleichstand: gleiche Punkte -> gleicher Platz (1, 2, 2, 4 ...)
+    let rank = 0;
+    let prev = null;
+    const players = rows.map((p, i) => {
+      if (prev === null || p.points !== prev) rank = i + 1;
+      prev = p.points;
+      return { ...p, rank };
+    });
+    players.forEach((p) => {
+      p.tied = players.filter((q) => q.rank === p.rank).length > 1;
+    });
+    return json({ players: players.slice(0, 300) });
   }
 
   // ---------- Eingeloggt ----------
