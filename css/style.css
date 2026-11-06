@@ -571,3 +571,13 @@ a.level-link .rank { min-height: 56px; height: auto; }
 .team-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 700; }
 .team-row img { border-radius: 50%; border: 1px solid var(--panel-border); }
 .role-form-select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 12px; }
+
+/* ---------- Regeln: Abschnitte ---------- */
+.rules h2 { margin: 26px 0 8px; font-size: 1.1rem; color: var(--accent, #f5b400); }
+.rules h2:first-child { margin-top: 0; }
+.rules p, .rules li { color: var(--text); }
+.rules ul { padding-left: 20px; margin: 0; }
+.rules li { margin-bottom: 6px; }
+.rules-intro { margin-bottom: 18px; border-left: 4px solid var(--accent, #f5b400); }
+.rules-intro p { margin: 0; }
+.tip { margin: 22px 0 6px; padding: 14px 16px; border-radius: 12px; background: rgba(124,255,107,.08); border: 1px solid rgba(124,255,107,.35); color: var(--text); }
