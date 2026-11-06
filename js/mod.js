@@ -96,7 +96,7 @@ async function renderQueue() {
     </div>
     <p class="hint" data-msg></p>`;
 
-  panel.addEventListener("click", queueClick);
+  panel.onclick = queueClick; // onclick statt addEventListener, sonst sammeln sich Listener an
 }
 
 async function queueClick(e) {
