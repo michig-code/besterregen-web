@@ -13,7 +13,7 @@
         return;
       }
       box.innerHTML = `
-        <div class="dstat"><span class="dot-online"></span><strong>${fmt(d.online)}</strong><small>online</small></div>
+        <div class="dstat"><strong><span class="dot-online"></span>${fmt(d.online)}</strong><small>online</small></div>
         <div class="dstat"><strong>${fmt(d.members)}</strong><small>Mitglieder</small></div>`;
     } catch {
       box.innerHTML = '<p class="hint">Die Discord-Zahlen sind gerade nicht verfügbar.</p>';
