@@ -333,6 +333,14 @@ async function health(env) {
       out[`table_${t}`] = String(e.message || e).slice(0, 160);
     }
   }
+  try {
+    const r = await fetch(`${env.SUPABASE_URL}/storage/v1/bucket/uploads`, {
+      headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}` },
+    });
+    out.storage_bucket_uploads = r.ok ? "ok" : `status ${r.status}: ${(await r.text()).slice(0, 160)}`;
+  } catch (e) {
+    out.storage_bucket_uploads = String(e.message || e).slice(0, 160);
+  }
   return out;
 }
 
