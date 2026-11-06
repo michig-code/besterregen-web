@@ -77,7 +77,8 @@
     out.innerHTML = '<p class="status">Lädt …</p>';
     const r = await api(`/lists/${list.slug}/levels`);
     current = (r.data && r.data.levels) || [];
-    current.forEach((l) => { l.points = l.points; });
+    const badge = tabs.querySelector(`[data-count="${list.id}"]`);
+    if (badge) badge.textContent = `${current.length} Level`;
     draw();
   }
 
@@ -85,8 +86,7 @@
 
   lists.forEach((list, idx) => {
     const btn = document.createElement("button");
-    const places = list.max_places ? `Plätze 1–${list.max_places}` : "";
-    btn.innerHTML = `${esc(list.name)}${places ? `<small>${esc(places)}</small>` : ""}`;
+    btn.innerHTML = `${esc(list.name)}<small data-count="${esc(list.id)}"></small>`;
     btn.setAttribute("role", "tab");
     btn.addEventListener("click", () => {
       tabs.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
