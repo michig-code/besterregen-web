@@ -198,10 +198,12 @@ async function fetchLevelComments(levelId) {
     .split("|")
     .filter(Boolean)
     .map((entry) => {
-      const f = parseFields(entry);
-      // Feld 2 = Kommentartext (Base64), Feld 16 = Account-ID
-      const body = decodeBase64Url(f["2"] || "");
-      const accountId = f["16"];
+      // Feld 2 = Kommentartext (Base64), Feld 16 = Account-ID.
+      // Direkt per Muster lesen, weil der Name ohne Schlüssel die Paare verschiebt.
+      const bodyMatch = entry.match(/^2~([^~]+)~/);
+      const idMatch = entry.match(/~16~(\d+)/);
+      const body = bodyMatch ? decodeBase64Url(bodyMatch[1]) : "";
+      const accountId = idMatch ? idMatch[1] : null;
       // Der Name steht direkt vor "~9~" (Zeitangabe), er beginnt nicht mit einer Ziffer
       const nameMatch = entry.match(/~([^~\d][^~]*)~9~/);
       const userName = nameMatch ? nameMatch[1] : null;
