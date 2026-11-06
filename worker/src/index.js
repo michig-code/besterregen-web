@@ -329,48 +329,6 @@ async function health(env) {
   return out;
 }
 
-// Prüfseite: zeigt nur Ja/Nein, keine Geheimnisse
-async function health(env) {
-  const out = {
-    discordClientId: !!env.DISCORD_CLIENT_ID,
-    discordSecret: !!env.DISCORD_CLIENT_SECRET,
-    supabaseUrl: !!env.SUPABASE_URL,
-    supabaseKey: !!env.SUPABASE_SERVICE_KEY,
-    apiUrl: env.API_URL,
-    siteUrl: env.SITE_URL,
-  };
-  try {
-    await db(env, "GET", "sessions?select=id&limit=1");
-    out.supabaseTableSessions = "ok";
-  } catch (e) {
-    out.supabaseTableSessions = String(e.message || e);
-  }
-  return out;
-}
-
-// Debug: zeigt die rohe Antwort der GD-Server (nur für eingeloggte Nutzer)
-async function verifyDebug(request, env) {
-  const session = await getSession(request, env);
-  if (!session) return { error: "not_logged_in" };
-  const res = await fetch(GD_COMMENTS, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      levelID: env.VERIFY_LEVEL_ID, page: "0", total: "0", secret: GD_SECRET, mode: "0", count: "100",
-    }),
-  });
-  const raw = await res.text();
-  const parts = raw.split("#");
-  return {
-    httpStatus: res.status,
-    length: raw.length,
-    rawHead: raw.slice(0, 1200),
-    sectionCount: parts.length,
-    userSectionHead: (parts[1] || "").slice(0, 600),
-    parsedComments: (await fetchLevelComments(env.VERIFY_LEVEL_ID)).length,
-  };
-}
-
 // Liefert einen noch offenen Code, damit die Seite nach dem Neuladen weitermacht
 async function verifyStatus(request, env) {
   const session = await getSession(request, env);
