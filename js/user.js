@@ -41,8 +41,10 @@
             <small>${m.gdName ? "GD: " + esc(m.gdName) : "GD-Account nicht verknüpft"}</small>
           </div>
           <a href="settings.html">Einstellungen</a>
+          <a href="support.html">Support</a>
+          ${isMod || canRoles ? '<div class="ud-group">Verwaltung</div>' : ""}
           ${isMod ? '<a href="mod.html">Moderation</a>' : ""}
-          ${canRoles ? '<a href="admin.html">Rollen</a>' : ""}
+          ${canRoles ? '<a href="admin.html">Rollen &amp; Mitglieder</a>' : ""}
           <button class="ud-logout" type="button">Abmelden</button>
         </div>
       </div>`;

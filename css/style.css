@@ -447,3 +447,20 @@ a.level-link .rank { min-height: 56px; height: auto; }
 .list-tabs { flex-wrap: wrap; }
 .list-tabs button { min-width: 0; }
 .search { max-width: 100%; }
+
+/* ---------- Bereichs-Navigation, Support, Gruppen im Menü ---------- */
+.subnav { max-width: 1180px; margin: 0 auto 22px; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+.subnav a { font-weight: 700; color: var(--text); padding: 9px 16px; border-radius: 999px; border: 1px solid var(--panel-border); text-decoration: none; background: var(--panel); }
+.subnav a:hover { border-color: var(--purple); color: var(--green); }
+.subnav a.on { background: var(--grad); border-color: transparent; color: #fff; }
+.ud-group { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 12px 4px; }
+.support-card { margin-bottom: 18px; }
+.support-card h2 { margin-top: 0; }
+.support-card details { border-bottom: 1px solid var(--panel-border); padding: 12px 0; }
+.support-card details:last-child { border-bottom: 0; }
+.support-card summary { cursor: pointer; font-weight: 700; list-style: none; }
+.support-card summary::-webkit-details-marker { display: none; }
+.support-card summary::after { content: "+"; float: right; color: var(--accent, #f5b400); font-size: 1.2rem; line-height: 1; }
+.support-card details[open] summary::after { content: "–"; }
+.support-card details p { color: var(--muted); margin: 10px 0 0; }
+.support-card details a { color: var(--cyan); }
