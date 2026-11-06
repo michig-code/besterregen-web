@@ -705,31 +705,48 @@ async function mergeImport(env, list, levels) {
     else news.push({ fields, records: Array.isArray(e.records) ? e.records : [] });
   }
 
-  // Records-Hilfe: nur Records hinzufügen, die noch nicht existieren
-  const recordsFor = async (levelId, incoming) => {
-    const have = (await db(env, "GET", `records?level_id=eq.${levelId}&select=player_name`)) || [];
-    const names = new Set(have.map((r) => r.player_name.toLowerCase()));
+  // Alle vorhandenen Records der Liste mit einer Abfrage holen (nicht pro Level)
+  const levelIds = existing.map((x) => x.id);
+  const haveByLevel = new Map();
+  for (let i = 0; i < levelIds.length; i += 100) {
+    const chunk = levelIds.slice(i, i + 100).join(",");
+    const rows = (await db(env, "GET", `records?level_id=in.(${chunk})&select=level_id,player_name`)) || [];
+    rows.forEach((r) => {
+      if (!haveByLevel.has(r.level_id)) haveByLevel.set(r.level_id, new Set());
+      haveByLevel.get(r.level_id).add(String(r.player_name).toLowerCase());
+    });
+  }
+  const recordRows = (levelId, incoming, done) => {
+    const names = done || new Set();
     return incoming
       .map((r) => ({ player: clean(r?.player, 40), progress: clean(r?.progress, 20), videoUrl: r?.videoUrl }))
       .filter((r) => r.player && !names.has(r.player.toLowerCase()))
       .slice(0, 50)
-      .map((r) => ({
-        level_id: levelId,
-        player_name: r.player,
-        video_url: isHttps(String(r.videoUrl || "")) ? String(r.videoUrl).slice(0, 300) : "https://www.youtube.com/",
-        notes: r.progress ? `Fortschritt beim Import: ${r.progress}` : null,
-        submitted_by: "import",
-        status: "approved",
-        approved_at: new Date().toISOString(),
-      }));
+      .map((r) => {
+        names.add(r.player.toLowerCase());
+        return {
+          level_id: levelId,
+          player_name: r.player,
+          video_url: isHttps(String(r.videoUrl || "")) ? String(r.videoUrl).slice(0, 300) : "https://www.youtube.com/",
+          notes: r.progress ? `Fortschritt beim Import: ${r.progress}` : null,
+          submitted_by: "import",
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        };
+      });
   };
 
-  let recordsAdded = 0;
-  for (const u of updates) {
-    await db(env, "PATCH", `levels?id=eq.${u.id}`, u.fields);
-    const recs = await recordsFor(u.id, u.records);
-    if (recs.length) { await db(env, "POST", "records", recs, { prefer: "return=minimal" }); recordsAdded += recs.length; }
+  // Bekannte Level: alle in einer Sammel-Anfrage aktualisieren (Zeilen-ID bleibt, Records bleiben)
+  const existingById = new Map(existing.map((x) => [String(x.gd_level_id), x]));
+  if (updates.length) {
+    await db(env, "POST", "levels", updates.map((u) => ({ id: u.id, list_id: list.id, ...u.fields })),
+      { upsert: true, prefer: "return=minimal,resolution=merge-duplicates" });
   }
+  let recordsAdded = 0;
+  const allRecs = [];
+  for (const u of updates) allRecs.push(...recordRows(u.id, u.records, haveByLevel.get(u.id)));
+
+  // Neue Level: eine Sammel-Anfrage, dann ihre Records
   let added = 0;
   if (news.length) {
     const created = (await db(env, "POST", "levels", news.map((n) => ({ ...n.fields, list_id: list.id })), { prefer: "return=representation" })) || [];
@@ -737,11 +754,14 @@ async function mergeImport(env, list, levels) {
     const idByGd = new Map(created.map((c) => [String(c.gd_level_id), c.id]));
     for (const n of news) {
       const id = idByGd.get(n.fields.gd_level_id);
-      if (!id || !n.records.length) continue;
-      const recs = await recordsFor(id, n.records);
-      if (recs.length) { await db(env, "POST", "records", recs, { prefer: "return=minimal" }); recordsAdded += recs.length; }
+      if (id) allRecs.push(...recordRows(id, n.records, new Set()));
     }
   }
+  for (let i = 0; i < allRecs.length; i += 200) {
+    await db(env, "POST", "records", allRecs.slice(i, i + 200), { prefer: "return=minimal" });
+  }
+  recordsAdded = allRecs.length;
+  void existingById;
   const missing = existing.filter((x) => !seen.has(String(x.gd_level_id))).length;
   return { ok: true, merged: true, updated: updates.length, added, recordsAdded, notInImport: missing, skipped };
 }
