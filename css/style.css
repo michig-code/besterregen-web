@@ -248,3 +248,45 @@ h2 { font-size: 1.4rem; margin: 0 0 16px; }
 .topbar nav a.discord:hover { background: #4752c4; color: #fff; }
 .hero-actions { margin-top: 22px; }
 .hero-actions .btn { background: #5865F2; box-shadow: 0 6px 20px rgba(88, 101, 242, 0.35); }
+
+/* ---------- Verwaltung ---------- */
+.admin-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
+.admin-grid h2 { margin-top: 0; }
+.admin-grid h3 { margin: 22px 0 10px; font-size: 1rem; }
+.role-list { display: grid; gap: 8px; margin-bottom: 8px; }
+.role-row, .member {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--panel-border); background: rgba(255,255,255,0.02);
+}
+.role-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.role-info small { color: var(--muted); }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 10px currentColor; }
+.role-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-weight: 600; }
+.role-form input[type="text"], .role-form input:not([type]), .search {
+  font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 12px;
+}
+.role-form input[type="color"] { width: 64px; height: 40px; border: 0; background: none; padding: 0; cursor: pointer; }
+.role-form fieldset { border: 1px solid var(--panel-border); border-radius: 12px; margin: 0 0 16px; padding: 12px; }
+.role-form legend { font-weight: 700; padding: 0 6px; }
+.check { display: flex !important; flex-direction: row !important; gap: 10px; align-items: flex-start; font-weight: 400 !important; margin-bottom: 10px; }
+.check small { color: var(--muted); }
+.form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn.ghost { background: transparent; border: 1px solid var(--panel-border); box-shadow: none; color: var(--text); }
+.search { width: 100%; margin-bottom: 14px; }
+.results { display: grid; gap: 10px; }
+.member img { border-radius: 50%; flex: none; }
+.member-body { flex: 1; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip-btn {
+  font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer;
+  color: var(--text); background: transparent;
+  border: 1px solid var(--panel-border); border-radius: 999px; padding: 5px 11px;
+  transition: background .2s ease, border-color .2s ease;
+}
+.chip-btn:hover { border-color: var(--purple); }
+.chip-btn.on { background: color-mix(in srgb, var(--c, var(--purple)) 25%, transparent); border-color: var(--c, var(--purple)); }
+.chip-btn.danger { color: #ff7a9c; }
+.chip-btn.danger:hover { border-color: #ff7a9c; }

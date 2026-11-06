@@ -1,3 +1,5 @@
+import { db } from "./db.js";
+import { handleAdmin, getUserPermissions } from "./admin.js";
 // Besterregen API (Cloudflare Worker)
 // Routen:
 //   GET  /auth/discord            -> leitet zu Discord-Login weiter
@@ -31,6 +33,8 @@ export default {
         return json(await verifyStart(request, env), 200, cors);
       if (url.pathname === "/verify/check" && request.method === "POST")
         return json(await verifyCheck(request, env), 200, cors);
+      if (url.pathname.startsWith("/admin/"))
+        return await handleAdmin(request, url, env, { getSession, json, cors });
       if (url.pathname === "/logout") return logout(env);
       if (url.pathname === "/health") return json(await health(env), 200, cors);
       if (url.pathname === "/verify/status" && request.method === "GET")
@@ -82,6 +86,12 @@ async function authCallback(url, env) {
   const token = await tokenRes.json();
 
   const me = await discordGet("/users/@me", token.access_token);
+  await db(env, "POST", "users", {
+    discord_id: me.id,
+    name: me.global_name || me.username,
+    avatar: me.avatar || null,
+    last_login: new Date().toISOString(),
+  }, { upsert: true });
   const sessionId = randomToken(32);
   await db(env, "POST", "sessions", {
     id: sessionId,
@@ -124,6 +134,7 @@ async function currentUser(request, env) {
     discordName: session.discord_name,
     roles,
     gdName: link ? link.gd_name : null,
+    permissions: await getUserPermissions(env, session.discord_id),
   };
 }
 
@@ -253,27 +264,6 @@ async function discordGet(path, accessToken) {
   });
   if (!res.ok) throw new Error(`discord ${path} ${res.status}`);
   return res.json();
-}
-
-async function db(env, method, path, body, opts = {}) {
-  const headers = {
-    apikey: env.SUPABASE_SERVICE_KEY,
-    Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-    "Content-Type": "application/json",
-  };
-  if (method === "POST") {
-    headers.Prefer = opts.upsert
-      ? "return=minimal,resolution=merge-duplicates"
-      : "return=minimal";
-  }
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(`supabase ${method} ${path} ${res.status}`);
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
 }
 
 function logout(env) {

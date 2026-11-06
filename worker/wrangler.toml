@@ -17,3 +17,5 @@ DISCORD_CLIENT_ID = "1568347689069060217"            # öffentlich, darf hier st
 GUILD_ID = "1448417260849987660"                     # ID von Besterregen
 SUPABASE_URL = "https://zepjphmijrpugrxxuaqp.supabase.co"
 VERIFY_LEVEL_ID = "151924233"
+# Discord-IDs der Admins (komma-getrennt), z. B. "123456789012345678"
+ADMIN_DISCORD_IDS = "HIER_DEINE_DISCORD_ID"
