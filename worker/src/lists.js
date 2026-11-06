@@ -1,4 +1,4 @@
-// Listen, Level-Einreichungen, Records und Moderation
+// Listen, Level-Einsendungen, Records und Moderation
 import { db } from "./db.js";
 import { getUserPermissions } from "./admin.js";
 
@@ -155,7 +155,7 @@ export async function handleContent(request, url, env, ctx) {
     return json({ url: `${env.SUPABASE_URL}/storage/v1/object/public/uploads/${key}` });
   }
 
-  // Level einreichen
+  // Level einsenden
   if (path === "/submit/level" && method === "POST") {
     const b = await request.json().catch(() => null);
     const name = clean(b?.name, 80);
@@ -184,14 +184,14 @@ export async function handleContent(request, url, env, ctx) {
     }, { prefer: "return=representation" });
 
     await notify(env, "level_submitted", {
-      title: "Neues Level eingereicht",
+      title: "Neues Level eingesendet",
       description: `**${name}** von ${creator} für ${lists[0].name} (${duration} s)`,
       url: `${siteUrl}/mod.html`,
     });
     return json({ ok: true, id: rows && rows[0] && rows[0].id });
   }
 
-  // Record einreichen
+  // Record einsenden
   if (path === "/submit/record" && method === "POST") {
     const b = await request.json().catch(() => null);
     const levelId = b?.levelId;
@@ -209,8 +209,8 @@ export async function handleContent(request, url, env, ctx) {
       submitted_by: session.discord_id, status: "pending",
     });
     await notify(env, "record_submitted", {
-      title: "Neuer Record eingereicht",
-      description: `**${playerName}** hat **${levels[0].name}** eingereicht`,
+      title: "Neuer Record eingesendet",
+      description: `**${playerName}** hat **${levels[0].name}** eingesendet`,
       url: `${siteUrl}/mod.html`,
     });
     return json({ ok: true });

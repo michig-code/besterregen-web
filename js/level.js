@@ -30,7 +30,7 @@
         <p>von <strong>${esc(level.creator)}</strong></p>
         <p class="points-big">${esc(level.points)} <span>Punkte</span></p>
         <div class="form-actions">
-          <a class="btn ghost" href="einreichen.html?record=${esc(level.id)}">Record einreichen</a>
+          <a class="btn ghost" href="einreichen.html?record=${esc(level.id)}">Record einsenden</a>
         </div>
       </div>
     </section>

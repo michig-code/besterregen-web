@@ -5,7 +5,7 @@ export const PERMISSIONS = {
   admin: "Alles verwalten, inklusive Rollen",
   "roles.manage": "Rollen erstellen und Mitgliedern zuteilen",
   "lists.manage": "Listen und Level verwalten",
-  "submissions.review": "Einreichungen annehmen oder ablehnen",
+  "submissions.review": "Einsendungen annehmen oder ablehnen",
   "notifications.manage": "Discord-Benachrichtigungen festlegen",
 };
 const ALL = Object.keys(PERMISSIONS);

@@ -1,9 +1,9 @@
-// Level oder Record einreichen (nur angemeldet)
+// Level oder Record einsenden (nur angemeldet)
 (async function () {
   const app = document.getElementById("app");
   const me = await api("/me").catch(() => ({ data: {} }));
   if (!me.data || !me.data.loggedIn) {
-    app.innerHTML = `<div class="card"><p>Zum Einreichen bitte zuerst mit Discord anmelden.</p>
+    app.innerHTML = `<div class="card"><p>Zum Einsenden bitte zuerst mit Discord anmelden.</p>
       <p><a class="btn" href="verify.html">Zur Anmeldung</a></p></div>`;
     return;
   }
@@ -14,14 +14,14 @@
   const startTab = preRecord ? "record" : "level";
 
   app.innerHTML = `
-    <p class="hint rules-hint">Bitte vorher die <a href="regeln.html">Einreichungs-Regeln</a> lesen.</p>
+    <p class="hint rules-hint">Bitte vorher die <a href="regeln.html">Einsendungs-Regeln</a> lesen.</p>
     <div class="tabs-row">
-      <button class="chip-btn ${startTab === "level" ? "on" : ""}" data-tab="level">Level einreichen</button>
-      <button class="chip-btn ${startTab === "record" ? "on" : ""}" data-tab="record">Record einreichen</button>
+      <button class="chip-btn ${startTab === "level" ? "on" : ""}" data-tab="level">Level einsenden</button>
+      <button class="chip-btn ${startTab === "record" ? "on" : ""}" data-tab="record">Record einsenden</button>
     </div>
 
     <section class="card" id="panel-level" ${startTab !== "level" ? "hidden" : ""}>
-      <h2>Level einreichen</h2>
+      <h2>Level einsenden</h2>
       <form class="role-form" id="form-level">
         <label>Liste
           <select name="listId" required>
@@ -37,13 +37,13 @@
         <label>Bild (optional, max. 2 MB)
           <input name="image" type="file" accept="image/jpeg,image/png,image/webp">
         </label>
-        <div class="form-actions"><button class="btn" type="submit">Level einreichen</button></div>
+        <div class="form-actions"><button class="btn" type="submit">Level einsenden</button></div>
         <p class="hint" data-msg></p>
       </form>
     </section>
 
     <section class="card" id="panel-record" ${startTab !== "record" ? "hidden" : ""}>
-      <h2>Record einreichen</h2>
+      <h2>Record einsenden</h2>
       <form class="role-form" id="form-record">
         <label>Liste
           <select id="rec-list" required>
@@ -56,7 +56,7 @@
         <label>Dein Spielername <input name="playerName" maxlength="40" required></label>
         <label>Video-Link <input name="videoUrl" type="url" maxlength="300" placeholder="https://…" required></label>
         <label>Anmerkung (optional) <input name="notes" maxlength="300"></label>
-        <div class="form-actions"><button class="btn" type="submit">Record einreichen</button></div>
+        <div class="form-actions"><button class="btn" type="submit">Record einsenden</button></div>
         <p class="hint" data-msg></p>
       </form>
     </section>`;
@@ -83,7 +83,7 @@
   recList.addEventListener("change", loadLevels);
   if (lists.length) loadLevels();
 
-  // Level absenden: erst Bild hochladen, dann Einreichung
+  // Level absenden: erst Bild hochladen, dann Einsendung
   document.getElementById("form-level").addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -97,7 +97,7 @@
       if (!up.ok) { msg.textContent = errText(up.data); return; }
       imageUrl = up.data.url;
     }
-    msg.textContent = "Level wird eingereicht …";
+    msg.textContent = "Level wird eingesendet …";
     const res = await api("/submit/level", { method: "POST", body: {
       listId: f.listId, name: f.name, creator: f.creator, verifier: f.verifier,
       gdLevelId: f.gdLevelId, durationSeconds: Number(f.durationSeconds), videoUrl: f.videoUrl,
@@ -105,7 +105,7 @@
     }});
     if (!res.ok) { msg.textContent = errText(res.data); return; }
     form.reset();
-    msg.textContent = "Danke! Dein Level wurde eingereicht und wird geprüft.";
+    msg.textContent = "Danke! Dein Level wurde eingesendet und wird geprüft.";
   });
 
   // Record absenden
@@ -119,6 +119,6 @@
     }});
     if (!res.ok) { msg.textContent = errText(res.data); return; }
     form.reset();
-    msg.textContent = "Danke! Dein Record wurde eingereicht und wird geprüft.";
+    msg.textContent = "Danke! Dein Record wurde eingesendet und wird geprüft.";
   });
 })();

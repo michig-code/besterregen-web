@@ -5,8 +5,8 @@ let lists = [];
 let queue = { levels: [], records: [] };
 
 const EVENT_LABELS = {
-  level_submitted: "Neues Level eingereicht",
-  record_submitted: "Neuer Record eingereicht",
+  level_submitted: "Neues Level eingesendet",
+  record_submitted: "Neuer Record eingesendet",
   level_accepted: "Level angenommen",
   record_approved: "Record bestätigt",
 };
@@ -51,7 +51,7 @@ async function renderQueue() {
   lists = (l.data && l.data.lists) || [];
 
   if (!queue.levels.length && !queue.records.length) {
-    panel.innerHTML = '<div class="card"><p>Alles erledigt. Keine offenen Einreichungen.</p></div>';
+    panel.innerHTML = '<div class="card"><p>Alles erledigt. Keine offenen Einsendungen.</p></div>';
     return;
   }
 
@@ -66,7 +66,7 @@ async function renderQueue() {
           <div class="queue-body">
             <strong>${esc(s.name)}</strong>
             <small>von ${esc(s.creator)} · verifiziert von ${esc(s.verifier)} · ${esc(s.duration_seconds)} s · Level-ID ${esc(s.gd_level_id)}</small>
-            <small>Liste: ${esc(list ? list.name : "?")} · eingereicht von ${esc(s.submitter_name || "?")}</small>
+            <small>Liste: ${esc(list ? list.name : "?")} · eingesendet von ${esc(s.submitter_name || "?")}</small>
             <small><a href="${esc(s.video_url)}" target="_blank" rel="noopener">Video öffnen</a></small>
             <div class="form-actions">
               <label class="inline">Platz <input type="number" min="1" value="" data-pos="${esc(s.id)}" placeholder="Ende"></label>
