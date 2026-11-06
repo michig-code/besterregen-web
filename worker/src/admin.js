@@ -6,6 +6,7 @@ export const PERMISSIONS = {
   "roles.manage": "Rollen erstellen und Mitgliedern zuteilen",
   "lists.manage": "Listen und Level verwalten",
   "submissions.review": "Einreichungen annehmen oder ablehnen",
+  "notifications.manage": "Discord-Benachrichtigungen festlegen",
 };
 const ALL = Object.keys(PERMISSIONS);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

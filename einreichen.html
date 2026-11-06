@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Level einreichen – Besterregen</title>
+  <title>Einreichen – Besterregen</title>
+  <link rel="icon" type="image/webp" href="assets/logo.webp">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/webp" href="assets/logo.webp">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -15,20 +15,15 @@
     <a class="brand" href="index.html"><img src="assets/logo.webp" alt="" width="32" height="32">Besterregen</a>
     <nav>
       <a href="index.html">Listen</a>
-      <a href="einreichen.html" class="cta">Level einreichen</a>
-      <a href="https://discord.besterregen.de" class="discord" target="_blank" rel="noopener">Discord beitreten</a>
+      <a href="einreichen.html" class="cta">Einreichen</a>
     </nav>
   </header>
-
   <section class="hero">
-    <span class="eyebrow">Einreichen</span>
-    <h1>Level einreichen</h1>
+    <span class="eyebrow">Mitmachen</span>
+    <h1>Einreichen</h1>
   </section>
-
-  <main class="container">
-    <div class="card">
-      <p>Die Einreichung läuft aktuell über Discord. Ein Formular mit Bild-Upload folgt, sobald die Anmeldung mit Discord eingerichtet ist.</p>
-    </div>
-  </main>
+  <main class="container" id="app"><p class="status">Lädt …</p></main>
+  <script src="js/common.js"></script>
+  <script src="js/submit.js"></script>
 </body>
 </html>

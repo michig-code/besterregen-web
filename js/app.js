@@ -1,47 +1,39 @@
-// Lädt die Listen aus data/listen.json und zeigt sie an.
-// Neue Listen einfach dort ergänzen, sie erscheinen automatisch als Tab.
+// Startseite: Listen-Tabs und Level nach Platz
 (async function () {
   const tabs = document.getElementById("list-tabs");
   const out = document.getElementById("level-list");
 
-  let data;
-  try {
-    const res = await fetch("data/listen.json", { cache: "no-store" });
-    if (!res.ok) throw new Error(res.status);
-    data = await res.json();
-  } catch (e) {
-    out.innerHTML = '<p class="status">Die Listen konnten nicht geladen werden.</p>';
+  const res = await api("/lists");
+  const lists = (res.data && res.data.lists) || [];
+  if (!res.ok || !lists.length) {
+    out.innerHTML = '<p class="status">Noch keine Listen vorhanden.</p>';
     return;
   }
 
-  function show(list) {
-    out.innerHTML = "";
-    if (!list.levels.length) {
+  async function show(list) {
+    out.innerHTML = '<p class="status">Lädt …</p>';
+    const r = await api(`/lists/${list.slug}/levels`);
+    const levels = (r.data && r.data.levels) || [];
+    if (!levels.length) {
       out.innerHTML = '<p class="status">Hier gibt es noch keine Level.</p>';
       return;
     }
-    list.levels.forEach((lvl, i) => {
-      const row = document.createElement("div");
-      row.className = "level";
-      row.style.animationDelay = `${Math.min(i, 12) * 40}ms`;
-      row.innerHTML = `
-        <div class="rank">#${i + 1}</div>
+    out.innerHTML = levels.map((lvl, i) => `
+      <a class="level level-link" href="level.html?id=${esc(lvl.id)}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+        <div class="rank">#${esc(lvl.position)}</div>
         <div>
-          <h3></h3>
-          <p></p>
-        </div>`;
-      row.querySelector("h3").textContent = lvl.name;
-      row.querySelector("p").textContent = `von ${lvl.creator}`;
-      out.appendChild(row);
-    });
+          <h3>${esc(lvl.name)}</h3>
+          <p>von ${esc(lvl.creator)}${lvl.duration_seconds ? ` · ${esc(lvl.duration_seconds)} s` : ""}</p>
+        </div>
+      </a>`).join("");
   }
 
-  data.lists.forEach((list, idx) => {
+  lists.forEach((list, idx) => {
     const btn = document.createElement("button");
     btn.textContent = list.name;
     btn.setAttribute("role", "tab");
     btn.addEventListener("click", () => {
-      tabs.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+      tabs.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       show(list);
     });

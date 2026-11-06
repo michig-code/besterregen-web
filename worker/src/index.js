@@ -1,5 +1,6 @@
 import { db } from "./db.js";
 import { handleAdmin, getUserPermissions } from "./admin.js";
+import { handleContent } from "./lists.js";
 // Besterregen API (Cloudflare Worker)
 // Routen:
 //   GET  /auth/discord            -> leitet zu Discord-Login weiter
@@ -33,6 +34,10 @@ export default {
         return json(await verifyStart(request, env), 200, cors);
       if (url.pathname === "/verify/check" && request.method === "POST")
         return json(await verifyCheck(request, env), 200, cors);
+      if (/^\/(lists|levels|submit|upload|mod)(\/|$)/.test(url.pathname)) {
+        const r = await handleContent(request, url, env, { getSession, json, cors });
+        if (r) return r;
+      }
       if (url.pathname.startsWith("/admin/"))
         return await handleAdmin(request, url, env, { getSession, json, cors });
       if (url.pathname === "/logout") return logout(env);
