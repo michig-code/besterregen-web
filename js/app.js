@@ -28,7 +28,34 @@
       </a>`).join("");
   }
 
+  let subIds = null;
+  async function loadSubs() {
+    const me = await api("/me").catch(() => ({ data: {} }));
+    if (!me.data || !me.data.loggedIn) return null;
+    const r = await api("/subscriptions");
+    return (r.data && r.data.listIds) || [];
+  }
+  async function renderSub(list) {
+    const box = document.getElementById("sub-area");
+    if (!box) return;
+    if (subIds === null) subIds = await loadSubs();
+    if (subIds === null) {
+      box.innerHTML = '<p class="hint sub-hint">Melde dich an, um diese Liste zu abonnieren und über neue Level informiert zu werden.</p>';
+      return;
+    }
+    const on = subIds.includes(list.id);
+    box.innerHTML = `<button class="chip-btn sub-btn ${on ? "on" : ""}" type="button">${on ? "🔔 Abonniert" : "🔕 Abonnieren"}</button>
+      <span class="hint sub-hint">${on ? "Du bekommst Benachrichtigungen zu neuen Leveln dieser Liste." : "Lass dich über neue Level dieser Liste informieren."}</span>`;
+    box.querySelector(".sub-btn").addEventListener("click", async () => {
+      const r = on
+        ? await api(`/subscriptions/${list.id}`, { method: "DELETE" })
+        : await api("/subscriptions", { method: "POST", body: { listId: list.id } });
+      if (r.ok) { subIds = on ? subIds.filter((x) => x !== list.id) : [...subIds, list.id]; renderSub(list); }
+    });
+  }
+
   async function show(list) {
+    renderSub(list);
     out.innerHTML = '<p class="status">Lädt …</p>';
     const r = await api(`/lists/${list.slug}/levels`);
     current = (r.data && r.data.levels) || [];

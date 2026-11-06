@@ -47,6 +47,13 @@
     </section>
 
     <section class="card settings-card">
+      <h3>Benachrichtigungen</h3>
+      <p class="hint">Neue Level, Records und Entscheidungen erscheinen in der Glocke oben rechts. Zusätzlich kannst du Browser-Benachrichtigungen erlauben, auch wenn die Seite im Hintergrund ist.</p>
+      <p id="notif-status" class="hint"></p>
+      <div class="form-actions"><button class="btn ghost" id="notif-btn" type="button">Browser-Benachrichtigungen erlauben</button></div>
+    </section>
+
+    <section class="card settings-card">
       <h3>Konto</h3>
       <p class="hint">Abmelden löscht die Sitzung auf dem Server und auf diesem Gerät.</p>
       <button class="btn ghost" id="logout-btn">Abmelden</button>
@@ -58,6 +65,20 @@
     const r = await api("/gd/unlink", { method: "POST" });
     if (!r.ok) { document.getElementById("gd-msg").textContent = errText(r.data); return; }
     location.reload();
+  });
+
+  const nBtn = document.getElementById("notif-btn");
+  const nStatus = document.getElementById("notif-status");
+  function showNotifState() {
+    if (!("Notification" in window)) { nStatus.textContent = "Dein Browser unterstützt keine Browser-Benachrichtigungen."; nBtn.hidden = true; return; }
+    if (Notification.permission === "granted") { nStatus.textContent = "Browser-Benachrichtigungen sind erlaubt."; nBtn.hidden = true; }
+    else if (Notification.permission === "denied") { nStatus.textContent = "Du hast sie im Browser blockiert. Dort kannst du sie wieder freigeben."; nBtn.hidden = true; }
+    else nStatus.textContent = "Noch nicht erlaubt.";
+  }
+  showNotifState();
+  nBtn.addEventListener("click", async () => {
+    await Notification.requestPermission();
+    showNotifState();
   });
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
