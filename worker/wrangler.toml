@@ -8,8 +8,8 @@ compatibility_date = "2025-01-01"
 # gesetzt.
 
 [vars]
-SITE_URL = "https://besterregen-web.pages.dev"          # später durch eure Domain ersetzen
-API_URL = "https://besterregen-api.<dein-subdomain>.workers.dev"
+SITE_URL = "https://besterregen.de"
+API_URL = "https://api.besterregen.de"
 DISCORD_CLIENT_ID = "HIER_CLIENT_ID_EINTRAGEN"            # öffentlich, darf hier stehen
 GUILD_ID = "HIER_SERVER_ID_EINTRAGEN"                     # ID von Besterregen
 SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co"

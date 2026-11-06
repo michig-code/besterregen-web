@@ -1,5 +1,5 @@
-// Ersetze API_URL durch die Adresse deines Workers (siehe worker/wrangler.toml)
-const API_URL = "https://besterregen-api.<dein-subdomain>.workers.dev";
+// API-Adresse des Workers (api.besterregen.de)
+const API_URL = "https://api.besterregen.de";
 const box = document.getElementById("box");
 
 const api = (path, opts = {}) =>
