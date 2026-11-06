@@ -1,5 +1,5 @@
-// API-Adresse des Workers (api.besterregen.de)
-const API_URL = "https://api.besterregen.de";
+// API läuft unter derselben Domain, unter /api
+const API_URL = "/api";
 const box = document.getElementById("box");
 
 const api = (path, opts = {}) =>

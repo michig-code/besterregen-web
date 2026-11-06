@@ -7,9 +7,12 @@ compatibility_date = "2025-01-01"
 #   npx wrangler secret put SUPABASE_SERVICE_KEY
 # gesetzt.
 
+# Route: alle Anfragen unter besterregen.de/api/* gehen an diesen Worker
+routes = [{ pattern = "besterregen.de/api/*", zone_name = "besterregen.de" }]
+
 [vars]
 SITE_URL = "https://besterregen.de"
-API_URL = "https://api.besterregen.de"
+API_URL = "https://besterregen.de/api"
 DISCORD_CLIENT_ID = "1568347689069060217"            # öffentlich, darf hier stehen
 GUILD_ID = "1448417260849987660"                     # ID von Besterregen
 SUPABASE_URL = "https://zepjphmijrpugrxxuaqp.supabase.co"

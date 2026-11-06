@@ -18,6 +18,8 @@ const CODE_TTL_MS = 30 * 60 * 1000; // Code gilt 30 Minuten
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Die API läuft unter besterregen.de/api/* und wird hier ohne Präfix verarbeitet
+    if (url.pathname.startsWith("/api/")) url.pathname = url.pathname.slice(4);
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -53,7 +55,7 @@ function authStart(env) {
     status: 302,
     headers: {
       Location: `${DISCORD_AUTH}?${params}`,
-      "Set-Cookie": `${COOKIE}_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/auth; Max-Age=600`,
+      "Set-Cookie": `${COOKIE}_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=600`,
     },
   });
 }
@@ -91,7 +93,7 @@ async function authCallback(url, env) {
     status: 302,
     headers: {
       Location: `${env.SITE_URL}/verify.html`,
-      "Set-Cookie": `${COOKIE}=${sessionId}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
+      "Set-Cookie": `${COOKIE}=${sessionId}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`,
     },
   });
 }
@@ -289,7 +291,7 @@ function logout(env) {
     status: 302,
     headers: {
       Location: env.SITE_URL,
-      "Set-Cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`,
+      "Set-Cookie": `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
     },
   });
 }
