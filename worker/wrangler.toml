@@ -10,7 +10,7 @@ compatibility_date = "2025-01-01"
 [vars]
 SITE_URL = "https://besterregen.de"
 API_URL = "https://api.besterregen.de"
-DISCORD_CLIENT_ID = "HIER_CLIENT_ID_EINTRAGEN"            # öffentlich, darf hier stehen
-GUILD_ID = "HIER_SERVER_ID_EINTRAGEN"                     # ID von Besterregen
-SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co"
+DISCORD_CLIENT_ID = "1568347689069060217"            # öffentlich, darf hier stehen
+GUILD_ID = "1448417260849987660"                     # ID von Besterregen
+SUPABASE_URL = "https://zepjphmijrpugrxxuaqp.supabase.co"
 VERIFY_LEVEL_ID = "151924233"
