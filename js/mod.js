@@ -143,6 +143,7 @@ async function renderLists() {
               <strong>${esc(x.name)}</strong>
               <small>Kürzel: ${esc(x.slug)} · ${x.max_duration_seconds ? `max. ${esc(x.max_duration_seconds)} s` : "ohne Längenbegrenzung"}</small>
             </div>
+            <button class="chip-btn" data-team-list="${esc(x.id)}">Team</button>
             <button class="chip-btn" data-edit-list="${esc(x.id)}">Bearbeiten</button>
             <button class="chip-btn" data-open-list="${esc(x.slug)}">Level ordnen</button>
           </div>`).join("")}
@@ -161,6 +162,8 @@ async function renderLists() {
 
   panel.querySelectorAll("[data-open-list]").forEach((b) =>
     b.addEventListener("click", () => openOrder(b.dataset.openList)));
+  panel.querySelectorAll("[data-team-list]").forEach((b) =>
+    b.addEventListener("click", () => openTeam(b.dataset.teamList)));
   panel.querySelectorAll("[data-edit-list]").forEach((b) =>
     b.addEventListener("click", () => editList(b.dataset.editList)));
 
@@ -222,6 +225,70 @@ async function openOrder(slug) {
       return openOrder(slug);
     }
   };
+}
+
+// Team einer Liste: Editoren und Helfer setzen
+async function openTeam(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const box = document.getElementById("order-box");
+  box.innerHTML = '<p class="status">Lädt …</p>';
+  const r = await api(`/lists/${x.slug}/staff`);
+  const team = { editors: (r.data.editors || []).slice(), helpers: (r.data.helpers || []).slice() };
+  const flag = (c) => (c ? String.fromCodePoint(...c.toUpperCase().split("").map((ch) => 127397 + ch.charCodeAt(0))) : "");
+  const render = () => {
+    const row = (p, role) => `<div class="role-row">
+      <img src="${esc(p.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")}" width="32" height="32" alt="" style="border-radius:50%">
+      <div class="role-info"><strong>${flag(p.country)} ${esc(p.name)}</strong></div>
+      <button class="chip-btn danger" type="button" data-remove="${role}:${esc(p.discordId)}">Entfernen</button></div>`;
+    box.innerHTML = `
+      <h2>Team: ${esc(x.name)}</h2>
+      <h3>Editoren</h3>
+      <div class="role-list">${team.editors.map((p) => row(p, "editor")).join("") || '<p class="hint">Keine Editoren.</p>'}</div>
+      <h3>Helfer</h3>
+      <div class="role-list">${team.helpers.map((p) => row(p, "helper")).join("") || '<p class="hint">Keine Helfer.</p>'}</div>
+      <h3>Person hinzufügen</h3>
+      <select id="team-role" class="role-form-select"><option value="editor">als Editor</option><option value="helper">als Helfer</option></select>
+      <input id="team-q" class="search" type="search" placeholder="Name suchen …" autocomplete="off">
+      <div id="team-results" class="results"></div>
+      <div class="form-actions"><button class="btn" type="button" id="team-save">Speichern</button></div>
+      <p class="hint" id="team-msg"></p>`;
+    box.querySelectorAll("[data-remove]").forEach((btn) => btn.addEventListener("click", () => {
+      const [role, id2] = btn.dataset.remove.split(":");
+      team[role === "editor" ? "editors" : "helpers"] = team[role === "editor" ? "editors" : "helpers"].filter((p) => p.discordId !== id2);
+      render();
+    }));
+    let timer = null;
+    document.getElementById("team-q").addEventListener("input", (e) => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const q = e.target.value.trim();
+        const res = document.getElementById("team-results");
+        if (!q) { res.innerHTML = ""; return; }
+        const s = await api(`/mod/members?q=${encodeURIComponent(q)}`);
+        res.innerHTML = (s.data.members || []).map((mm) => `
+          <div class="member"><img src="${esc(mm.avatar ? `https://cdn.discordapp.com/avatars/${mm.discord_id}/${mm.avatar}.png?size=64` : "https://cdn.discordapp.com/embed/avatars/0.png")}" width="36" height="36" alt="" style="border-radius:50%">
+            <div class="member-body"><strong>${esc(mm.name)}</strong></div>
+            <button class="chip-btn" type="button" data-add="${esc(mm.discord_id)}" data-name="${esc(mm.name)}">Hinzufügen</button></div>`).join("") || '<p class="hint">Keine Treffer.</p>';
+        res.querySelectorAll("[data-add]").forEach((btn) => btn.addEventListener("click", () => {
+          const role = document.getElementById("team-role").value === "editor" ? "editors" : "helpers";
+          const id2 = btn.dataset.add;
+          const all = [...team.editors, ...team.helpers];
+          if (all.some((p) => p.discordId === id2)) { document.getElementById("team-msg").textContent = "Diese Person ist schon im Team."; return; }
+          team[role].push({ discordId: id2, name: btn.dataset.name, avatar: null, country: null });
+          render();
+        }));
+      }, 300);
+    });
+    document.getElementById("team-save").addEventListener("click", async () => {
+      const res = await api(`/mod/lists/${x.id}/staff`, { method: "PUT", body: {
+        editors: team.editors.map((p) => p.discordId),
+        helpers: team.helpers.map((p) => p.discordId),
+      }});
+      document.getElementById("team-msg").textContent = res.ok ? "Gespeichert." : errText(res.data);
+    });
+  };
+  render();
 }
 
 // Liste bearbeiten: Name, Kürzel, Platzanzahl, maximale Länge

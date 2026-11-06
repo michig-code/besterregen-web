@@ -1,4 +1,5 @@
-// Einstellungen: Profil, GD-Verknüpfung, Rechte, Abmelden
+// Einstellungen: Profil, Land, GD-Verknüpfung, Rechte, Abmelden
+const COUNTRIES = [["DE","Deutschland"],["AT","Österreich"],["CH","Schweiz"],["IT","Italien"],["FR","Frankreich"],["ES","Spanien"],["NL","Niederlande"],["BE","Belgien"],["PL","Polen"],["CZ","Tschechien"],["SE","Schweden"],["NO","Norwegen"],["DK","Dänemark"],["FI","Finnland"],["GB","Vereinigtes Königreich"],["IE","Irland"],["PT","Portugal"],["GR","Griechenland"],["TR","Türkei"],["RU","Russland"],["UA","Ukraine"],["US","USA"],["CA","Kanada"],["BR","Brasilien"],["MX","Mexiko"],["AR","Argentinien"],["IN","Indien"],["JP","Japan"],["KR","Südkorea"],["CN","China"],["AU","Australien"],["IL","Israel"],["JO","Jordanien"],["SA","Saudi-Arabien"],["EG","Ägypten"]];
 (async function () {
   const app = document.getElementById("app");
   const me = await api("/me").catch(() => ({ data: {} }));
@@ -47,6 +48,19 @@
     </section>
 
     <section class="card settings-card">
+      <h3>Land</h3>
+      <p class="hint">Wird neben deinem Namen als Flagge angezeigt, z. B. in den Listen-Teams.</p>
+      <div class="form-actions">
+        <select id="country" class="role-form-select">
+          <option value="">Keine Angabe</option>
+          ${COUNTRIES.map(([c, n]) => `<option value="${c}" ${m.country === c ? "selected" : ""}>${n}</option>`).join("")}
+        </select>
+        <button class="btn ghost" id="country-btn" type="button">Speichern</button>
+      </div>
+      <p class="hint" id="country-msg"></p>
+    </section>
+
+    <section class="card settings-card">
       <h3>Benachrichtigungen</h3>
       <p class="hint">Neue Level, Records und Entscheidungen erscheinen in der Glocke oben rechts. Zusätzlich kannst du Browser-Benachrichtigungen erlauben, auch wenn die Seite im Hintergrund ist.</p>
       <p id="notif-status" class="hint"></p>
@@ -65,6 +79,12 @@
     const r = await api("/gd/unlink", { method: "POST" });
     if (!r.ok) { document.getElementById("gd-msg").textContent = errText(r.data); return; }
     location.reload();
+  });
+
+  document.getElementById("country-btn").addEventListener("click", async () => {
+    const v = document.getElementById("country").value;
+    const r = await api("/profile/country", { method: "POST", body: { country: v || null } });
+    document.getElementById("country-msg").textContent = r.ok ? "Gespeichert." : errText(r.data);
   });
 
   const nBtn = document.getElementById("notif-btn");

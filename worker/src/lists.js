@@ -76,6 +76,30 @@ export async function handleContent(request, url, env, ctx) {
     });
   }
 
+  // Team einer Liste (Editoren und Helfer), öffentlich
+  const staffMatch = path.match(/^\/lists\/([a-z0-9-]{1,40})\/staff$/);
+  if (staffMatch && method === "GET") {
+    const lists = await db(env, "GET", `lists?slug=eq.${staffMatch[1]}&select=id`);
+    if (!lists || !lists[0]) return json({ error: "not_found" }, 404);
+    const rows = (await db(env, "GET", `list_staff?list_id=eq.${lists[0].id}&select=discord_id,role`)) || [];
+    const ids = [...new Set(rows.map((r) => r.discord_id))];
+    let users = [], members = [];
+    if (ids.length) {
+      const inList = ids.map((i) => encodeURIComponent(i)).join(",");
+      users = (await db(env, "GET", `users?discord_id=in.(${inList})&select=discord_id,name,avatar,country`)) || [];
+      members = (await db(env, "GET", `guild_members?discord_id=in.(${inList})&select=discord_id,name,avatar`)) || [];
+    }
+    const person = (id) => {
+      const u = users.find((x) => x.discord_id === id) || {};
+      const g = members.find((x) => x.discord_id === id) || {};
+      return { discordId: id, name: u.name || g.name || "Mitglied", avatar: u.avatar || g.avatar || null, country: u.country || null };
+    };
+    return json({
+      editors: rows.filter((r) => r.role === "editor").map((r) => person(r.discord_id)),
+      helpers: rows.filter((r) => r.role === "helper").map((r) => person(r.discord_id)),
+    });
+  }
+
   const levelMatch = path.match(/^\/levels\/([0-9a-f-]{36})$/);
   if (levelMatch && UUID.test(levelMatch[1]) && method === "GET") {
     const levels = await db(env, "GET",
@@ -385,6 +409,32 @@ export async function handleContent(request, url, env, ctx) {
         link: "einreichen.html",
       }).catch(() => {});
     }
+    return json({ ok: true });
+  }
+
+  // Mitglieder suchen (für das Listen-Team)
+  if (path === "/mod/members" && method === "GET") {
+    const denied = need("lists.manage"); if (denied) return denied;
+    const q = (url.searchParams.get("q") || "").trim();
+    if (q && !/^[\p{L}\p{N} ._-]{1,32}$/u.test(q)) return json({ error: "invalid_query" }, 400);
+    const filter = q ? `&name=ilike.*${encodeURIComponent(q)}*` : "";
+    const rows = (await db(env, "GET", `guild_members?select=discord_id,name,avatar&order=name.asc&limit=20${filter}`)) || [];
+    return json({ members: rows });
+  }
+
+  // Team einer Liste setzen (ersetzt Editoren und Helfer komplett)
+  const staffSetM = path.match(/^\/mod\/lists\/([0-9a-f-]{36})\/staff$/);
+  if (staffSetM && UUID.test(staffSetM[1]) && method === "PUT") {
+    const denied = need("lists.manage"); if (denied) return denied;
+    const b = await request.json().catch(() => ({}));
+    const ok = (arr) => Array.isArray(arr) && arr.every((x) => /^\d{5,25}$/.test(String(x)));
+    if (!ok(b?.editors || []) || !ok(b?.helpers || [])) return json({ error: "invalid_staff" }, 400);
+    const rows = [
+      ...[...new Set((b.editors || []).map(String))].map((id) => ({ list_id: staffSetM[1], discord_id: id, role: "editor" })),
+      ...[...new Set((b.helpers || []).map(String))].map((id) => ({ list_id: staffSetM[1], discord_id: id, role: "helper" })),
+    ];
+    await db(env, "DELETE", `list_staff?list_id=eq.${staffSetM[1]}`);
+    if (rows.length) await db(env, "POST", "list_staff", rows, { prefer: "return=minimal" });
     return json({ ok: true });
   }
 

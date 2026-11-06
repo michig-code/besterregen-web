@@ -45,6 +45,8 @@ export default {
       }
       if (url.pathname === "/discord/stats" && request.method === "GET")
         return json(await discordStats(env), 200, cors);
+      if (url.pathname === "/profile/country" && request.method === "POST")
+        return json(await setCountry(request, env), 200, cors);
       if (url.pathname === "/gd/unlink" && request.method === "POST")
         return json(await gdUnlink(request, env), 200, cors);
       if (url.pathname.startsWith("/admin/"))
@@ -145,7 +147,7 @@ async function currentUser(request, env) {
   }
 
   const link = await getGdLink(env, session.discord_id);
-  const profile = (await db(env, "GET", `users?discord_id=eq.${session.discord_id}&select=name,avatar`))?.[0];
+  const profile = (await db(env, "GET", `users?discord_id=eq.${session.discord_id}&select=name,avatar,country`))?.[0];
   return {
     loggedIn: true,
     discordId: session.discord_id,
@@ -155,6 +157,7 @@ async function currentUser(request, env) {
       : "https://cdn.discordapp.com/embed/avatars/0.png",
     roles,
     gdName: link ? link.gd_name : null,
+    country: profile?.country || null,
     permissions: await getUserPermissions(env, session.discord_id),
   };
 }
@@ -412,4 +415,15 @@ function cleanName(name, fallback) {
     .trim()
     .slice(0, 32);
   return cleaned || String(fallback || "Mitglied").slice(0, 32);
+}
+
+// Land des Nutzers speichern (ISO-Ländercode, z. B. "DE"; leer = keins)
+async function setCountry(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return { error: "not_logged_in" };
+  const b = await request.json().catch(() => null);
+  const c = b?.country ? String(b.country).toUpperCase() : null;
+  if (c !== null && !/^[A-Z]{2}$/.test(c)) return { error: "invalid_country" };
+  await db(env, "PATCH", `users?discord_id=eq.${session.discord_id}`, { country: c });
+  return { ok: true };
 }

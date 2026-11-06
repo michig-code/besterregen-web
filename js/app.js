@@ -54,7 +54,25 @@
     });
   }
 
+  const flagOf = (c) => (c ? String.fromCodePoint(...c.toUpperCase().split("").map((ch) => 127397 + ch.charCodeAt(0))) : "");
+  async function renderTeam(list) {
+    const card = document.getElementById("team-card");
+    if (!card) return;
+    const r = await api(`/lists/${list.slug}/staff`);
+    const row = (p) => `<div class="team-row">
+        <img src="${esc(p.avatar ? `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.png?size=64` : "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="" width="32" height="32">
+        <span>${flagOf(p.country)} ${esc(p.name)}</span></div>`;
+    const eds = (r.data.editors || []).map(row).join("");
+    const hlp = (r.data.helpers || []).map(row).join("");
+    card.innerHTML = `<h3>Listenteam</h3>
+      <p class="hint">Bei Problemen mit der Liste wende dich an:</p>
+      ${eds ? `<h4 class="team-title">Editoren</h4>${eds}` : ""}
+      ${hlp ? `<h4 class="team-title">Helfer</h4>${hlp}` : ""}
+      ${!eds && !hlp ? '<p class="hint">Noch kein Team eingetragen.</p>' : ""}`;
+  }
+
   async function show(list) {
+    renderTeam(list);
     renderSub(list);
     out.innerHTML = '<p class="status">Lädt …</p>';
     const r = await api(`/lists/${list.slug}/levels`);
