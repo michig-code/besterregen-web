@@ -438,6 +438,60 @@ export async function handleContent(request, url, env, ctx) {
     return json({ ok: true });
   }
 
+  // JSON-Import (Ausgabe des Import-Skripts). Überschreibt nie vorhandene Level.
+  if (path === "/mod/import" && method === "POST") {
+    const denied = need("lists.manage"); if (denied) return denied;
+    const b = await request.json().catch(() => null);
+    if (!UUID.test(b?.listId || "") || !Array.isArray(b?.levels) || !b.levels.length) {
+      return json({ error: "invalid_import" }, 400);
+    }
+    if (b.levels.length > 500) return json({ error: "too_many" }, 400);
+    const list = (await db(env, "GET", `lists?id=eq.${b.listId}&select=id,max_duration_seconds`))?.[0];
+    if (!list) return json({ error: "invalid_list" }, 400);
+    const existing = (await db(env, "GET", `levels?list_id=eq.${b.listId}&select=position`)) || [];
+    if (existing.length) {
+      return json({ error: "list_not_empty", count: existing.length }, 409);
+    }
+    const rows = [];
+    const skipped = [];
+    const seen = new Set();
+    for (const e of b.levels) {
+      const rank = Number(e?.rank);
+      const why = (msg) => skipped.push({ rank: e?.rank ?? null, name: e?.name ?? null, reason: msg });
+      if (!Number.isInteger(rank) || rank < 1) { why("Platz fehlt oder ist ungültig"); continue; }
+      if (seen.has(rank)) { why("Platz kommt doppelt vor"); continue; }
+      const name = clean(e.name, 80);
+      if (!name) { why("Name fehlt"); continue; }
+      const gd = String(e.levelId || "").trim();
+      if (!/^\d{1,12}$/.test(gd)) { why("Level-ID fehlt (wird übersprungen)"); continue; }
+      const dur = e.lengthSeconds == null ? null : Number(e.lengthSeconds);
+      if (dur !== null && (!Number.isInteger(dur) || dur < 1)) { why("Länge ist ungültig"); continue; }
+      if (dur && list.max_duration_seconds && dur > list.max_duration_seconds) { why(`Länger als ${list.max_duration_seconds} s`); continue; }
+      const vid = String(e.videoId || "");
+      seen.add(rank);
+      rows.push({
+        list_id: b.listId,
+        position: rank,
+        name,
+        creator: clean(e.publisher, 60) || clean(e.verifier, 60) || "Unbekannt",
+        verifier: clean(e.verifier, 60) || clean(e.publisher, 60) || "Unbekannt",
+        gd_level_id: gd,
+        video_url: /^[\w-]{11}$/.test(vid) ? `https://www.youtube.com/watch?v=${vid}` : "https://www.youtube.com/",
+        duration_seconds: dur,
+        difficulty: clean(e.difficulty, 40) || null,
+        requirement: Number.isInteger(Number(e.requirement)) && Number(e.requirement) >= 1 && Number(e.requirement) <= 100 ? Number(e.requirement) : 100,
+        song: clean(e.song, 80) || null,
+        objects: Number.isInteger(Number(e.objects)) ? Number(e.objects) : null,
+        nong: clean(e.nong, 80) || null,
+        creators: clean(e.creators, 200) || null,
+      });
+    }
+    for (let i = 0; i < rows.length; i += 200) {
+      await db(env, "POST", "levels", rows.slice(i, i + 200), { prefer: "return=minimal" });
+    }
+    return json({ ok: true, imported: rows.length, skipped });
+  }
+
   if (path === "/mod/lists" && method === "POST") {
     const denied = need("lists.manage"); if (denied) return denied;
     const b = await request.json().catch(() => null);

@@ -143,6 +143,7 @@ async function renderLists() {
               <strong>${esc(x.name)}</strong>
               <small>Kürzel: ${esc(x.slug)} · ${x.max_duration_seconds ? `max. ${esc(x.max_duration_seconds)} s` : "ohne Längenbegrenzung"}</small>
             </div>
+            <button class="chip-btn" data-import-list="${esc(x.id)}">Importieren</button>
             <button class="chip-btn" data-team-list="${esc(x.id)}">Team</button>
             <button class="chip-btn" data-edit-list="${esc(x.id)}">Bearbeiten</button>
             <button class="chip-btn" data-open-list="${esc(x.slug)}">Level ordnen</button>
@@ -162,6 +163,8 @@ async function renderLists() {
 
   panel.querySelectorAll("[data-open-list]").forEach((b) =>
     b.addEventListener("click", () => openOrder(b.dataset.openList)));
+  panel.querySelectorAll("[data-import-list]").forEach((b) =>
+    b.addEventListener("click", () => openImport(b.dataset.importList)));
   panel.querySelectorAll("[data-team-list]").forEach((b) =>
     b.addEventListener("click", () => openTeam(b.dataset.teamList)));
   panel.querySelectorAll("[data-edit-list]").forEach((b) =>
@@ -225,6 +228,60 @@ async function openOrder(slug) {
       return openOrder(slug);
     }
   };
+}
+
+// JSON-Import aus dem Import-Skript: Datei wählen, Vorschau prüfen, dann importieren
+function openImport(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const box = document.getElementById("order-box");
+  box.innerHTML = `
+    <h2>Import in „${esc(x.name)}“</h2>
+    <p class="hint">Wähle die JSON-Datei, die das Import-Skript erstellt hat. Vorhandene Level werden nie überschrieben.</p>
+    <input id="imp-file" type="file" accept=".json,application/json">
+    <div id="imp-preview"></div>
+    <p class="hint" id="imp-msg"></p>`;
+  const msg = document.getElementById("imp-msg");
+  const prev = document.getElementById("imp-preview");
+  let data = null;
+  document.getElementById("imp-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      msg.textContent = "Die Datei ist keine gültige JSON-Datei.";
+      return;
+    }
+    if (!Array.isArray(data)) { msg.textContent = "Die Datei enthält keine Liste von Leveln."; return; }
+    const bad = data.filter((d) => !d.levelId).length;
+    const long = x.max_duration_seconds ? data.filter((d) => d.lengthSeconds && d.lengthSeconds > x.max_duration_seconds).length : 0;
+    prev.innerHTML = `
+      <p><strong>${data.length}</strong> Einträge gefunden.
+        ${bad ? `<span class="warn">${bad} ohne Level-ID werden übersprungen.</span>` : ""}
+        ${long ? `<span class="warn">${long} sind länger als ${esc(x.max_duration_seconds)} s und werden übersprungen.</span>` : ""}
+      </p>
+      <div class="table-wrap"><table class="stats-table">
+        <thead><tr><th>Platz</th><th>Name</th><th>Creator</th><th>Verifier</th><th>Level-ID</th><th class="num">Länge</th></tr></thead>
+        <tbody>${data.slice(0, 200).map((d) => `<tr>
+          <td class="rank-cell">${esc(d.rank)}</td><td>${esc(d.name)}</td><td>${esc(d.publisher || "")}</td>
+          <td>${esc(d.verifier || "")}</td><td>${esc(d.levelId || "–")}</td><td class="num">${esc(d.lengthSeconds ?? "–")}</td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="form-actions"><button class="btn" type="button" id="imp-go">Jetzt importieren</button></div>`;
+    document.getElementById("imp-go").addEventListener("click", async () => {
+      msg.textContent = "Wird importiert …";
+      const r = await api("/mod/import", { method: "POST", body: { listId: x.id, levels: data } });
+      if (!r.ok) {
+        msg.textContent = r.data.error === "list_not_empty"
+          ? `Die Liste hat schon ${r.data.count} Level. Import abgebrochen, damit nichts überschrieben wird.`
+          : errText(r.data);
+        return;
+      }
+      const sk = (r.data.skipped || []).map((k) => `Platz ${k.rank ?? "?"} (${k.name ?? "?"}): ${k.reason}`).join("\n");
+      msg.textContent = `${r.data.imported} Level importiert.` + (sk ? `\n${r.data.skipped.length} übersprungen:\n${sk}` : "");
+      renderLists();
+    });
+  });
 }
 
 // Team einer Liste: Editoren und Helfer setzen
