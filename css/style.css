@@ -239,3 +239,12 @@ h2 { font-size: 1.4rem; margin: 0 0 16px; }
 }
 .hint { color: var(--muted); font-size: .9rem; }
 .card h2 { margin-top: 0; }
+
+/* Discord-Button */
+.topbar nav a.discord {
+  color: #fff;
+  background: #5865F2;
+}
+.topbar nav a.discord:hover { background: #4752c4; color: #fff; }
+.hero-actions { margin-top: 22px; }
+.hero-actions .btn { background: #5865F2; box-shadow: 0 6px 20px rgba(88, 101, 242, 0.35); }
