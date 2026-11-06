@@ -1,0 +1,16 @@
+name = "besterregen-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Geheimnisse werden NICHT hier eingetragen, sondern mit
+#   npx wrangler secret put DISCORD_CLIENT_SECRET
+#   npx wrangler secret put SUPABASE_SERVICE_KEY
+# gesetzt.
+
+[vars]
+SITE_URL = "https://besterregen-web.pages.dev"          # später durch eure Domain ersetzen
+API_URL = "https://besterregen-api.<dein-subdomain>.workers.dev"
+DISCORD_CLIENT_ID = "HIER_CLIENT_ID_EINTRAGEN"            # öffentlich, darf hier stehen
+GUILD_ID = "HIER_SERVER_ID_EINTRAGEN"                     # ID von Besterregen
+SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co"
+VERIFY_LEVEL_ID = "151924233"

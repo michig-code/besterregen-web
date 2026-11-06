@@ -208,3 +208,34 @@ h2 { font-size: 1.4rem; margin: 0 0 16px; }
   border-radius: 10px;
   box-shadow: 0 0 16px rgba(56, 232, 255, 0.35);
 }
+
+/* Verifizierung */
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-weight: 700;
+  color: #fff;
+  background: var(--grad);
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 22px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(255, 47, 179, 0.3);
+  transition: transform .15s ease, filter .2s ease;
+}
+.btn:hover { transform: translateY(-1px); filter: brightness(1.08); color: #fff; }
+.code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--green);
+  background: rgba(124, 255, 107, 0.08);
+  border: 1px dashed rgba(124, 255, 107, 0.4);
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: inline-block;
+}
+.hint { color: var(--muted); font-size: .9rem; }
+.card h2 { margin-top: 0; }
