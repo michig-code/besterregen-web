@@ -182,6 +182,30 @@ export async function handleContent(request, url, env, ctx) {
     return json({ players: players.slice(0, 300) });
   }
 
+  // Sync-Empfang vom GitHub-Ablauf (Authentifizierung über geheimen Schlüssel, nicht über Login)
+  if ((path === "/sync/ingest" || path === "/sync/fail") && method === "POST") {
+    const auth = request.headers.get("Authorization") || "";
+    if (!env.SYNC_INGEST_SECRET || auth !== `Bearer ${env.SYNC_INGEST_SECRET}`) return json({ error: "forbidden" }, 403);
+    const b = await request.json().catch(() => null);
+    if (!UUID.test(b?.listId || "")) return json({ error: "invalid_list" }, 400);
+    const list = (await db(env, "GET", `lists?id=eq.${b.listId}&select=id,max_duration_seconds,sync_enabled`))?.[0];
+    if (!list) return json({ error: "not_found" }, 404);
+    if (path === "/sync/fail") {
+      await db(env, "PATCH", `lists?id=eq.${list.id}`, { sync_running: false, sync_status: "fehler", sync_message: clean(b?.message, 300) || "Unbekannter Fehler" });
+      return json({ ok: true });
+    }
+    if (!list.sync_enabled) return json({ error: "sync_disabled" }, 403);
+    try {
+      const result = await mergeImport(env, list, Array.isArray(b?.levels) ? b.levels : []);
+      const msg = `${result.updated} aktualisiert, ${result.added} neu, ${result.recordsAdded} Records neu, ${result.notInImport} nicht mehr im Import`;
+      await db(env, "PATCH", `lists?id=eq.${list.id}`, { sync_running: false, sync_status: "ok", sync_message: msg });
+      return json(result);
+    } catch (err) {
+      await db(env, "PATCH", `lists?id=eq.${list.id}`, { sync_running: false, sync_status: "fehler", sync_message: String(err.message || err).slice(0, 300) });
+      return json({ error: "merge_failed" }, 500);
+    }
+  }
+
   // ---------- Eingeloggt ----------
   const needsLogin = path === "/upload" || path.startsWith("/submit/") || path.startsWith("/mod/");
   if (!needsLogin) return null;
@@ -410,6 +434,63 @@ export async function handleContent(request, url, env, ctx) {
       }).catch(() => {});
     }
     return json({ ok: true });
+  }
+
+  // Synchronisation pro Liste: nur Admins
+  const syncM = path.match(/^\/mod\/lists\/([0-9a-f-]{36})\/sync$/);
+  if (syncM && UUID.test(syncM[1])) {
+    if (!perms.includes("admin")) return json({ error: "forbidden" }, 403);
+    if (method === "GET") {
+      const row = (await db(env, "GET", `lists?id=eq.${syncM[1]}&select=sync_enabled,sync_url,sync_last_run,sync_running,sync_status,sync_message`))?.[0];
+      if (!row) return json({ error: "not_found" }, 404);
+      return json(row);
+    }
+    if (method === "PUT") {
+      const b = await request.json().catch(() => ({}));
+      const patch = { sync_enabled: !!b.enabled };
+      if (b.url !== undefined) {
+        const u = b.url ? clean(b.url, 300) : null;
+        if (u && !isHttps(u)) return json({ error: "invalid_url" }, 400);
+        patch.sync_url = u;
+      }
+      if (patch.sync_enabled && !(patch.sync_url || (await db(env, "GET", `lists?id=eq.${syncM[1]}&select=sync_url`))?.[0]?.sync_url)) {
+        return json({ error: "no_url" }, 400);
+      }
+      await db(env, "PATCH", `lists?id=eq.${syncM[1]}`, patch);
+      return json({ ok: true });
+    }
+  }
+
+  const syncNowM = path.match(/^\/mod\/lists\/([0-9a-f-]{36})\/sync-now$/);
+  if (syncNowM && UUID.test(syncNowM[1]) && method === "POST") {
+    if (!perms.includes("admin")) return json({ error: "forbidden" }, 403);
+    const row = (await db(env, "GET", `lists?id=eq.${syncNowM[1]}&select=sync_enabled,sync_url,sync_last_run,sync_running`))?.[0];
+    if (!row) return json({ error: "not_found" }, 404);
+    if (!row.sync_enabled) return json({ error: "sync_disabled" }, 400);
+    if (!row.sync_url) return json({ error: "no_url" }, 400);
+    if (row.sync_running) return json({ error: "already_running" }, 409);
+    const COOLDOWN = 15 * 60 * 1000;
+    const since = row.sync_last_run ? Date.now() - new Date(row.sync_last_run).getTime() : Infinity;
+    if (since < COOLDOWN) return json({ error: "cooldown", waitSeconds: Math.ceil((COOLDOWN - since) / 1000) }, 429);
+    await db(env, "PATCH", `lists?id=eq.${syncNowM[1]}`, {
+      sync_running: true, sync_last_run: new Date().toISOString(), sync_status: "läuft", sync_message: null,
+    });
+    const gh = await fetch(`https://api.github.com/repos/${env.GH_REPO}/actions/workflows/sync-list.yml/dispatches`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.GH_SYNC_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+        "User-Agent": "besterregen-api",
+      },
+      body: JSON.stringify({ ref: "main", inputs: { list_id: syncNowM[1], source_url: row.sync_url } }),
+    });
+    if (!gh.ok) {
+      await db(env, "PATCH", `lists?id=eq.${syncNowM[1]}`, { sync_running: false, sync_status: "fehler", sync_message: `Start bei GitHub fehlgeschlagen (${gh.status})` });
+      return json({ error: "github_failed" }, 502);
+    }
+    return json({ ok: true, started: true });
   }
 
   // Mitglieder suchen (für das Listen-Team)
@@ -666,7 +747,7 @@ export async function handleContent(request, url, env, ctx) {
 
 // Erneuter Import: bekannte Level (gleiche Level-ID) werden aktualisiert und behalten ihre Records.
 // Neue Level werden angelegt. Level, die im Import fehlen, bleiben unverändert.
-async function mergeImport(env, list, levels) {
+export async function mergeImport(env, list, levels) {
   const existing = (await db(env, "GET", `levels?list_id=eq.${list.id}&select=id,gd_level_id,position`)) || [];
   const byGd = new Map(existing.map((x) => [String(x.gd_level_id), x]));
   const seen = new Set();

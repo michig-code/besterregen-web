@@ -20,4 +20,5 @@ VERIFY_LEVEL_ID = "151924233"
 # Dauerhafte Einladung zum Discord-Server (nur der Code, z. B. "abc123xyz")
 DISCORD_INVITE_CODE = "WDtXcSzy24"
 # Discord-IDs der Admins (komma-getrennt), z. B. "123456789012345678"
+GH_REPO = "michig-code/besterregen-web"
 ADMIN_DISCORD_IDS = "693861086683725987"

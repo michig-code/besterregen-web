@@ -650,3 +650,7 @@ details.more .info-table { margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) {
   .bg-fx, .bg-fx *, .home .hero h1 { animation: none !important; }
 }
+
+.switch-row { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 10px 0; }
+.switch-row input { width: 20px; height: 20px; accent-color: var(--purple); }
+#sync-now:disabled { opacity: .45; cursor: not-allowed; }

@@ -143,6 +143,7 @@ async function renderLists() {
               <strong>${esc(x.name)}</strong>
               <small>Kürzel: ${esc(x.slug)} · ${x.max_duration_seconds ? `max. ${esc(x.max_duration_seconds)} s` : "ohne Längenbegrenzung"}</small>
             </div>
+            ${perms.includes("admin") ? `<button class="chip-btn" data-sync-list="${esc(x.id)}">Sync</button>` : ""}
             <button class="chip-btn" data-import-list="${esc(x.id)}">Importieren</button>
             <button class="chip-btn danger" data-delete-list="${esc(x.id)}">Löschen</button>
             <button class="chip-btn" data-team-list="${esc(x.id)}">Team</button>
@@ -164,6 +165,8 @@ async function renderLists() {
 
   panel.querySelectorAll("[data-open-list]").forEach((b) =>
     b.addEventListener("click", () => openOrder(b.dataset.openList)));
+  panel.querySelectorAll("[data-sync-list]").forEach((b) =>
+    b.addEventListener("click", () => openSync(b.dataset.syncList)));
   panel.querySelectorAll("[data-delete-list]").forEach((b) =>
     b.addEventListener("click", () => deleteList(b.dataset.deleteList)));
   panel.querySelectorAll("[data-import-list]").forEach((b) =>
@@ -231,6 +234,76 @@ async function openOrder(slug) {
       return openOrder(slug);
     }
   };
+}
+
+// Synchronisation (nur Admins): Schalter, Quelle, Knopf mit Sperre
+let syncTimer = null;
+async function openSync(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  clearInterval(syncTimer);
+  const box = document.getElementById("order-box");
+  const COOLDOWN_MS = 15 * 60 * 1000;
+  const render = (st) => {
+    const since = st.sync_last_run ? Date.now() - new Date(st.sync_last_run).getTime() : Infinity;
+    const waitMin = Math.ceil((COOLDOWN_MS - since) / 60000);
+    const cooling = since < COOLDOWN_MS;
+    const canRun = st.sync_enabled && st.sync_url && !st.sync_running && !cooling;
+    const statusTxt = st.sync_running ? "Wird gerade synchronisiert …"
+      : st.sync_status === "ok" ? `Letzter Lauf erfolgreich: ${st.sync_message || ""}`
+      : st.sync_status === "fehler" ? `Letzter Lauf fehlgeschlagen: ${st.sync_message || ""}`
+      : "Noch nie synchronisiert.";
+    box.innerHTML = `
+      <h2>Synchronisation: ${esc(x.name)}</h2>
+      <p class="hint">Nur Admins können diese Einstellungen ändern und den Abruf starten.</p>
+      <label class="switch-row">
+        <input type="checkbox" id="sync-on" ${st.sync_enabled ? "checked" : ""}>
+        <span>Synchronisation aktiv</span>
+      </label>
+      <label>Adresse der Übersicht
+        <input id="sync-url" type="url" maxlength="300" placeholder="https://…" value="${esc(st.sync_url || "")}">
+      </label>
+      <div class="form-actions">
+        <button class="btn ghost" type="button" id="sync-save">Einstellungen speichern</button>
+        <button class="btn" type="button" id="sync-now" ${canRun ? "" : "disabled"}>Jetzt synchronisieren</button>
+      </div>
+      <p class="hint">${esc(statusTxt)}</p>
+      ${cooling && !st.sync_running ? `<p class="hint">Nächster Abruf möglich in ca. ${waitMin} Min.</p>` : ""}
+      <p class="hint" id="sync-msg"></p>
+      <div class="form-actions"><button class="btn ghost" type="button" id="sync-back">Zurück zur Liste</button></div>`;
+    document.getElementById("sync-back").addEventListener("click", () => { clearInterval(syncTimer); renderLists(); });
+    document.getElementById("sync-save").addEventListener("click", async () => {
+      const r = await api(`/mod/lists/${x.id}/sync`, { method: "PUT", body: {
+        enabled: document.getElementById("sync-on").checked,
+        url: document.getElementById("sync-url").value.trim(),
+      }});
+      document.getElementById("sync-msg").textContent = r.ok ? "Gespeichert." : errText(r.data);
+      if (r.ok) openSync(id);
+    });
+    document.getElementById("sync-now").addEventListener("click", async () => {
+      const r = await api(`/mod/lists/${x.id}/sync-now`, { method: "POST" });
+      if (!r.ok) {
+        const t = r.data.error === "cooldown" ? `Bitte noch ${Math.ceil(r.data.waitSeconds / 60)} Min. warten.`
+          : r.data.error === "already_running" ? "Es läuft schon eine Synchronisation."
+          : r.data.error === "github_failed" ? "Der Start bei GitHub hat nicht geklappt."
+          : errText(r.data);
+        document.getElementById("sync-msg").textContent = t;
+        return;
+      }
+      openSync(id);
+    });
+  };
+  const load = async () => (await api(`/mod/lists/${x.id}/sync`)).data;
+  let st = await load();
+  render(st);
+  // Während eines Laufs den Status alle 10 Sekunden aktualisieren
+  if (st.sync_running) {
+    syncTimer = setInterval(async () => {
+      st = await load();
+      if (!st.sync_running) { clearInterval(syncTimer); }
+      render(st);
+    }, 10000);
+  }
 }
 
 // Liste löschen: Name muss genau eingetippt werden
