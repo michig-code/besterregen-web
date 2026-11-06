@@ -40,12 +40,22 @@
         <h2>Level-Infos</h2>
         <table class="info-table">
           <tr><th>Position</th><td>#${esc(level.position)}</td></tr>
-          <tr><th>Liste</th><td>${esc(level.listName || "–")}</td></tr>
-          <tr><th>Creator</th><td>${esc(level.creator)}</td></tr>
+          <tr><th>Creator</th><td>${esc(level.creators || level.creator)}</td></tr>
           <tr><th>Verifier</th><td>${esc(level.verifier)}</td></tr>
           <tr><th>Level-ID</th><td>${esc(level.gd_level_id)}</td></tr>
           <tr><th>Länge</th><td>${level.duration_seconds ? esc(level.duration_seconds) + " s" : "–"}</td></tr>
         </table>
+        <details class="more">
+          <summary>Erweitert</summary>
+          <table class="info-table">
+            <tr><th>Kategorie</th><td>${esc(level.listName || "–")}</td></tr>
+            <tr><th>Schwierigkeit</th><td>${esc(level.difficulty || "–")}</td></tr>
+            <tr><th>Benötigter Fortschritt</th><td>${esc(level.requirement || 100)} %</td></tr>
+            <tr><th>Song</th><td>${esc(level.song || "–")}</td></tr>
+            <tr><th>Objekte</th><td>${level.objects != null ? esc(level.objects) : "–"}</td></tr>
+            <tr><th>NONG</th><td>${esc(level.nong || "–")}</td></tr>
+          </table>
+        </details>
       </section>
       <section class="card">
         <h2>Punkte</h2>

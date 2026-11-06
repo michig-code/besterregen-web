@@ -103,7 +103,7 @@ export async function handleContent(request, url, env, ctx) {
   const levelMatch = path.match(/^\/levels\/([0-9a-f-]{36})$/);
   if (levelMatch && UUID.test(levelMatch[1]) && method === "GET") {
     const levels = await db(env, "GET",
-      `levels?id=eq.${levelMatch[1]}&select=id,list_id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds`);
+      `levels?id=eq.${levelMatch[1]}&select=id,list_id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds,difficulty,requirement,song,objects,nong,creators`);
     if (!levels || !levels[0]) return json({ error: "not_found" }, 404);
     const level = levels[0];
     const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places`))?.[0] || {};
@@ -492,6 +492,17 @@ export async function handleContent(request, url, env, ctx) {
     const patch = {};
     const text = (key, max) => { if (typeof b?.[key] === "string") patch[key] = clean(b[key], max); };
     text("name", 80); text("creator", 60); text("verifier", 60);
+    text("difficulty", 40); text("song", 80); text("nong", 80); text("creators", 200);
+    if ("requirement" in (b || {})) {
+      const rq = Number(b.requirement);
+      if (!Number.isInteger(rq) || rq < 1 || rq > 100) return json({ error: "invalid_requirement" }, 400);
+      patch.requirement = rq;
+    }
+    if ("objects" in (b || {})) {
+      const ob = b.objects === null || b.objects === "" ? null : Number(b.objects);
+      if (ob !== null && (!Number.isInteger(ob) || ob < 0)) return json({ error: "invalid_objects" }, 400);
+      patch.objects = ob;
+    }
     if (typeof b?.gdLevelId === "string") {
       const id = b.gdLevelId.trim();
       if (!/^\d{1,12}$/.test(id)) return json({ error: "invalid_level_id" }, 400);

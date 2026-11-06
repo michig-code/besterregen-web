@@ -340,6 +340,12 @@ function editLevel(levelId, slug) {
         <label>GD-Level-ID <input name="gdLevelId" inputmode="numeric" maxlength="12" required value="${esc(lv.gd_level_id)}"></label>
         <label>Länge in Sekunden <input name="durationSeconds" type="number" min="1" value="${esc(lv.duration_seconds ?? "")}"></label>
         <label>Video-Link <input name="videoUrl" type="url" maxlength="300" required value="${esc(lv.video_url)}"></label>
+        <label>Mehrere Creator (optional, durch Komma getrennt) <input name="creators" maxlength="200" value="${esc(lv.creators || "")}"></label>
+        <label>Schwierigkeit <input name="difficulty" maxlength="40" value="${esc(lv.difficulty || "")}"></label>
+        <label>Benötigter Fortschritt in % <input name="requirement" type="number" min="1" max="100" value="${esc(lv.requirement || 100)}"></label>
+        <label>Song <input name="song" maxlength="80" value="${esc(lv.song || "")}"></label>
+        <label>Objekte <input name="objects" type="number" min="0" value="${esc(lv.objects ?? "")}"></label>
+        <label>NONG <input name="nong" maxlength="80" value="${esc(lv.nong || "")}"></label>
         <div class="form-actions">
           <button class="btn" type="submit">Speichern</button>
           <button class="btn ghost" type="button" id="cancel-level">Zurück zur Liste</button>
@@ -355,6 +361,12 @@ function editLevel(levelId, slug) {
         name: f.name, creator: f.creator, verifier: f.verifier, gdLevelId: f.gdLevelId,
         durationSeconds: f.durationSeconds ? Number(f.durationSeconds) : undefined,
         videoUrl: f.videoUrl,
+        creators: f.creators,
+        difficulty: f.difficulty,
+        requirement: f.requirement ? Number(f.requirement) : undefined,
+        song: f.song,
+        objects: f.objects === "" ? null : (f.objects !== undefined ? Number(f.objects) : undefined),
+        nong: f.nong,
       }});
       if (!res.ok) { msg.textContent = errText(res.data); return; }
       openOrder(slug);
