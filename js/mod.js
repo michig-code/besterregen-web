@@ -640,6 +640,12 @@ function editList(id) {
       <label>Name <input name="name" maxlength="60" required value="${esc(x.name)}"></label>
       <label>Kürzel (Link) <input name="slug" maxlength="40" required value="${esc(x.slug)}"></label>
       <label>Anzahl Plätze <input name="maxPlaces" type="number" min="1" max="500" required value="${esc(x.max_places || 50)}"></label>
+      <label>Punkte-System
+        <select name="scoring" class="role-form-select">
+          <option value="linear" ${x.scoring !== "demonlist" ? "selected" : ""}>Linear (Platz 1 = 500, letzter Platz = 10)</option>
+          <option value="demonlist" ${x.scoring === "demonlist" ? "selected" : ""}>Demonlist-Formel (wie bei der alten Demonlist)</option>
+        </select>
+      </label>
       <label>Maximale Länge in Sekunden (leer = keine Grenze) <input name="maxDurationSeconds" type="number" min="1" value="${esc(x.max_duration_seconds ?? "")}"></label>
       <div class="form-actions">
         <button class="btn" type="submit">Speichern</button>
@@ -656,6 +662,7 @@ function editList(id) {
     const res = await api(`/mod/lists/${x.id}`, { method: "PATCH", body: {
       name: f.name, slug: f.slug,
       maxPlaces: Number(f.maxPlaces),
+      scoring: f.scoring,
       maxDurationSeconds: f.maxDurationSeconds ? Number(f.maxDurationSeconds) : null,
     }});
     if (!res.ok) { msg.textContent = errText(res.data); return; }

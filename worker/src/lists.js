@@ -9,6 +9,25 @@ const MAX_IMG = 2 * 1024 * 1024;
 const COLOR = 9127158; // Bester Regen-Lila für Discord-Embeds
 
 // Punkte nach Platz: Platz 1 = 500, letzter Platz = 10, dazwischen gleichmäßig. Außerhalb der Liste = 0.
+// Punkte-Formel wie bei der Demonlist (score.js): Platz, Prozent und benötigter Fortschritt
+export function demonScore(rank, percent, minPercent) {
+  if (rank > 150) return 0;
+  if (rank > 75 && percent < 100) return 0;
+  const min = minPercent || 50;
+  let s = (-24.9975 * Math.pow(rank - 1, 0.4) + 200) * ((percent - (min - 1)) / (100 - (min - 1)));
+  s = Math.max(0, s);
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  if (percent !== 100) return r3(s - s / 3);
+  return Math.max(r3(s), 0);
+}
+
+// Punkte je nach Punkte-System der Liste
+export function scoreFor(list, position, percent, minPercent) {
+  if (!position) return 0;
+  if ((list?.scoring || "linear") === "demonlist") return demonScore(position, percent ?? 100, minPercent ?? 50);
+  return pointsFor(position, list?.max_places);
+}
+
 export function pointsFor(position, maxPlaces) {
   const max = maxPlaces || 50;
   if (!position || position < 1 || position > max) return 0;
@@ -103,15 +122,15 @@ export async function handleContent(request, url, env, ctx) {
   const levelMatch = path.match(/^\/levels\/([0-9a-f-]{36})$/);
   if (levelMatch && UUID.test(levelMatch[1]) && method === "GET") {
     const levels = await db(env, "GET",
-      `levels?id=eq.${levelMatch[1]}&select=id,list_id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds,difficulty,requirement,song,objects,nong,creators`);
+      `levels?id=eq.${levelMatch[1]}&select=id,list_id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds,difficulty,requirement,song,objects,nong,creators,is_beat`);
     if (!levels || !levels[0]) return json({ error: "not_found" }, 404);
     const level = levels[0];
-    const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places`))?.[0] || {};
+    const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places,scoring`))?.[0] || {};
     const records = (await db(env, "GET",
-      `records?level_id=eq.${level.id}&status=eq.approved&select=id,player_name,video_url,approved_at&order=approved_at.asc`)) || [];
+      `records?level_id=eq.${level.id}&status=eq.approved&select=id,player_name,video_url,approved_at,percent&order=approved_at.asc`)) || [];
     const contributors = (await db(env, "GET",
       `level_contributors?level_id=eq.${level.id}&select=name,part,position&order=position.asc`)) || [];
-    const points = pointsFor(level.position, list.max_places);
+    const points = scoreFor(list, level.position, 100, level.requirement);
     const isBeat = !!level.is_beat;
     const share = isBeat && contributors.length ? Math.round((points / contributors.length) * 100) / 100 : null;
     return json({
@@ -135,9 +154,9 @@ export async function handleContent(request, url, env, ctx) {
     const [links, users, levels, lists, records] = await Promise.all([
       db(env, "GET", "gd_links?select=discord_id,gd_name"),
       db(env, "GET", "users?select=discord_id,avatar"),
-      db(env, "GET", "levels?select=id,list_id,position,creator"),
-      db(env, "GET", "lists?select=id,max_places"),
-      db(env, "GET", "records?status=eq.approved&select=level_id,submitted_by"),
+      db(env, "GET", "levels?select=id,list_id,position,creator,requirement"),
+      db(env, "GET", "lists?select=id,max_places,scoring"),
+      db(env, "GET", "records?status=eq.approved&select=level_id,submitted_by,percent"),
     ]);
     const gdByDiscord = new Map((links || []).map((l) => [l.discord_id, l.gd_name]));
     const avatarByDiscord = new Map((users || []).map((u) => [u.discord_id, u.avatar]));
@@ -150,18 +169,20 @@ export async function handleContent(request, url, env, ctx) {
       const gd = gdByDiscord.get(r.submitted_by);
       const lv = levelById[r.level_id];
       if (!gd || !lv) continue;
-      if (!done.has(r.submitted_by)) done.set(r.submitted_by, new Set());
-      done.get(r.submitted_by).add(r.level_id);
+      if (!done.has(r.submitted_by)) done.set(r.submitted_by, new Map());
+      const m2 = done.get(r.submitted_by);
+      m2.set(r.level_id, Math.max(m2.get(r.level_id) || 0, r.percent ?? 100));
     }
 
     const rows = [];
-    for (const [discordId, levelIds] of done) {
+    for (const [discordId, levelMap] of done) {
       const gd = gdByDiscord.get(discordId);
       let points = 0;
-      for (const lid of levelIds) {
+      for (const [lid, pct] of levelMap) {
         const lv = levelById[lid];
-        points += pointsFor(lv.position, listById[lv.list_id]?.max_places);
+        points += scoreFor(listById[lv.list_id], lv.position, pct, lv.requirement);
       }
+      const levelIds = new Set(levelMap.keys());
       const created = (levels || []).filter((lv) => lv.creator && lv.creator.trim().toLowerCase() === gd.trim().toLowerCase()).length;
       rows.push({
         discordId,
@@ -610,7 +631,7 @@ export async function handleContent(request, url, env, ctx) {
         image_url: /^[\w-]{11}$/.test(vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null,
         duration_seconds: dur,
         difficulty: clean(e.difficulty, 40) || null,
-        requirement: Number.isInteger(Number(e.requirement)) && Number(e.requirement) >= 1 && Number(e.requirement) <= 100 ? Number(e.requirement) : 100,
+        requirement: Number.isInteger(Number(e.requirement ?? e.percentToQualify)) && Number(e.requirement ?? e.percentToQualify) >= 1 && Number(e.requirement ?? e.percentToQualify) <= 100 ? Number(e.requirement ?? e.percentToQualify) : 100,
         song: clean(e.song, 80) || null,
         objects: Number.isInteger(Number(e.objects)) ? Number(e.objects) : null,
         nong: clean(e.nong, 80) || null,
@@ -634,6 +655,7 @@ export async function handleContent(request, url, env, ctx) {
         recRows.push({
           level_id: levelId,
           player_name: player,
+          percent: Number.isInteger(Number(r?.percent)) ? Number(r.percent) : (parseInt(String(r?.progress), 10) || 100),
           video_url: isHttps(String(r?.videoUrl || "")) ? String(r.videoUrl).slice(0, 300) : "https://www.youtube.com/",
           notes: r?.progress ? `Fortschritt beim Import: ${clean(r.progress, 20)}` : null,
           submitted_by: "import",
@@ -689,6 +711,7 @@ export async function handleContent(request, url, env, ctx) {
       if (!/^[a-z0-9-]{1,40}$/.test(slug)) return json({ error: "invalid_slug" }, 400);
       patch.slug = slug;
     }
+    if (b?.scoring === "linear" || b?.scoring === "demonlist") patch.scoring = b.scoring;
     if ("maxPlaces" in (b || {})) {
       const mp = Number(b.maxPlaces);
       if (!Number.isInteger(mp) || mp < 1 || mp > 500) return json({ error: "invalid_places" }, 400);
@@ -832,7 +855,7 @@ export async function mergeImport(env, list, levels) {
       image_url: /^[\w-]{11}$/.test(vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null,
       duration_seconds: dur,
       difficulty: clean(e.difficulty, 40) || null,
-      requirement: Number.isInteger(Number(e.requirement)) && Number(e.requirement) >= 1 && Number(e.requirement) <= 100 ? Number(e.requirement) : 100,
+      requirement: Number.isInteger(Number(e.requirement ?? e.percentToQualify)) && Number(e.requirement ?? e.percentToQualify) >= 1 && Number(e.requirement ?? e.percentToQualify) <= 100 ? Number(e.requirement ?? e.percentToQualify) : 100,
       song: clean(e.song, 80) || null,
       objects: Number.isInteger(Number(e.objects)) ? Number(e.objects) : null,
       nong: clean(e.nong, 80) || null,
@@ -866,6 +889,7 @@ export async function mergeImport(env, list, levels) {
         return {
           level_id: levelId,
           player_name: r.player,
+          percent: Number.isInteger(Number(r?.percent)) ? Number(r.percent) : (parseInt(String(r?.progress), 10) || 100),
           video_url: isHttps(String(r.videoUrl || "")) ? String(r.videoUrl).slice(0, 300) : "https://www.youtube.com/",
           notes: r.progress ? `Fortschritt beim Import: ${r.progress}` : null,
           submitted_by: "import",

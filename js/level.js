@@ -92,7 +92,7 @@
           ${records.map((r) => `
             <div class="record-row">
               <strong>${esc(r.player_name)}</strong>
-              <a href="${esc(r.video_url)}" target="_blank" rel="noopener">Video</a>
+              <span>${r.percent && r.percent !== 100 ? esc(r.percent) + " % · " : ""}<a href="${esc(r.video_url)}" target="_blank" rel="noopener">Video</a></span>
             </div>`).join("")}
         </div>` : `<p class="hint">Noch keine bestätigten Records. <a href="einreichen.html?record=${esc(level.id)}">Sei der Erste!</a></p>`}
     </section>`;
