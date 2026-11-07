@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mitglieder – Bester Regen</title>
+  <link rel="icon" type="image/webp" href="assets/logo.webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script>try{if(localStorage.getItem('br_lang')==='en')document.documentElement.dataset.lang='en'}catch(e){}</script>
+</head>
+<body class="home">
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="assets/logo.webp" alt="" width="32" height="32">Bester Regen</a>
+    <nav>
+      <a href="index.html"><span class="de">Listen</span><span class="en">Lists</span></a>
+      <a href="stats.html"><span class="de">Rangliste</span><span class="en">Ranking</span></a>
+      <a href="members.html" class="on"><span class="de">Mitglieder</span><span class="en">Members</span></a>
+      <a href="regeln.html"><span class="de">Regeln</span><span class="en">Rules</span></a>
+      <a href="einreichen.html" class="cta"><span class="de">Einsenden</span><span class="en">Submit</span></a>
+      <button class="lang-btn" id="lang-btn" type="button" aria-label="Sprache wechseln">EN</button>
+      <div id="user-slot" class="user-slot"><span class="user-skel" aria-hidden="true"></span></div>
+    </nav>
+  </header>
+  <section class="hero">
+    <span class="eyebrow"><span class="de">Community</span><span class="en">Community</span></span>
+    <h1><span class="de">Mitglieder</span><span class="en">Members</span></h1>
+    <p><span class="de">Alle Mitglieder mit Rang, Punkten und erstellten Leveln.</span><span class="en">All members with rank, points and created levels.</span></p>
+  </section>
+  <main class="container" id="app"><p class="status">Lädt …</p></main>
+  <script src="js/common.js"></script>
+  <script src="js/members.js"></script>
+  <script src="js/lang.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/user.js"></script>
+  <script src="js/consent.js"></script>
+</body>
+</html>

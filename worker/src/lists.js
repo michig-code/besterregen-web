@@ -193,6 +193,43 @@ export async function handleContent(request, url, env, ctx) {
     });
   }
 
+  // Mitgliederliste: nur für angemeldete Nutzer, nummeriert nach Rang
+  if (path === "/members" && method === "GET") {
+    const session = await ctx.getSession(request, env);
+    if (!session) return json({ error: "not_logged_in" }, 401);
+    const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+    const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0", 10) || 0);
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10) || 50));
+    const [members, ranking] = await Promise.all([
+      db(env, "GET", "guild_members?select=discord_id,name,avatar"),
+      buildRanking(env),
+    ]);
+    const statBy = new Map(ranking.map((p) => [p.discordId, p]));
+    let all = (members || []).map((m) => {
+      const s = statBy.get(m.discord_id);
+      return {
+        discordId: m.discord_id,
+        name: m.name,
+        avatar: m.avatar ? `https://cdn.discordapp.com/avatars/${m.discord_id}/${m.avatar}.png?size=64` : null,
+        rank: s ? s.rank : null,
+        tied: s ? s.tied : false,
+        points: s ? s.points : 0,
+        completions: s ? s.completions : 0,
+        created: s ? s.created : 0,
+      };
+    });
+    if (q) all = all.filter((m) => m.name.toLowerCase().includes(q));
+    // Erst die Platzierten nach Rang, dann alle übrigen alphabetisch
+    all.sort((x, y) => {
+      if (x.rank && y.rank) return x.rank - y.rank || x.name.localeCompare(y.name, "de");
+      if (x.rank) return -1;
+      if (y.rank) return 1;
+      return x.name.localeCompare(y.name, "de");
+    });
+    const items = all.slice(offset, offset + limit).map((m, i) => ({ number: offset + i + 1, ...m }));
+    return json({ items, total: all.length, hasMore: offset + limit < all.length });
+  }
+
   // Team einer Liste (Editoren und Helfer), öffentlich
   const staffMatch = path.match(/^\/lists\/([a-z0-9-]{1,40})\/staff$/);
   if (staffMatch && method === "GET") {
