@@ -248,11 +248,24 @@ export async function handleContent(request, url, env, ctx) {
 
   // Profil einer Person (nach GD-Namen): Rang, Punkte, erstellte Level, Completions
   const profM = path.match(/^\/profiles\/(.{1,60})$/);
-  if (profM && method === "GET") {
-    const name = decodeURIComponent(profM[1]).trim();
+  const profDM = path.match(/^\/profiles\/d\/(\d{5,25})$/);
+  if ((profM || profDM) && method === "GET") {
+    let name;
+    let discordHint = null;
+    if (profDM) {
+      discordHint = profDM[1];
+      const u = (await db(env, "GET", `users?discord_id=eq.${discordHint}&select=name`))?.[0]
+        || (await db(env, "GET", `guild_members?discord_id=eq.${discordHint}&select=name`))?.[0];
+      if (!u) return json({ error: "not_found" }, 404);
+      name = u.name;
+    } else {
+      name = decodeURIComponent(profM[1]).trim();
+    }
     const key = name.toLowerCase();
     const ranking = await buildRanking(env);
-    const me = ranking.find((p) => p.name.toLowerCase() === key) || null;
+    const me = discordHint
+      ? ranking.find((p) => p.discordId === discordHint) || null
+      : ranking.find((p) => p.name.toLowerCase() === key) || null;
     const [levels, lists] = await Promise.all([
       db(env, "GET", "levels?select=id,list_id,position,name,creator,creators,verifier,requirement"),
       db(env, "GET", "lists?select=id,name,slug,max_places,scoring"),
@@ -266,7 +279,7 @@ export async function handleContent(request, url, env, ctx) {
       listSlug: listById[lv.list_id]?.slug || "", verifier: lv.verifier,
       points: scoreFor(listById[lv.list_id], lv.position, 100, lv.requirement),
     })).sort((x, y) => (x.position || 9999) - (y.position || 9999));
-    if (!me && !created.length) return json({ error: "not_found" }, 404);
+
     let completions = [];
     if (me) {
       const recs = (await db(env, "GET", `records?submitted_by=eq.${encodeURIComponent(me.discordId)}&status=eq.approved&select=level_id,percent`)) || [];

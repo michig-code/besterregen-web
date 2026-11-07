@@ -59,7 +59,7 @@
     const card = document.getElementById("team-card");
     if (!card) return;
     const r = await api(`/lists/${list.slug}/staff`);
-    const row = (p) => `<a class="team-row team-link" href="profile.html?name=${encodeURIComponent(p.name)}">
+    const row = (p) => `<a class="team-row team-link" href="profile.html?discord=${encodeURIComponent(p.discordId)}">
         <img src="${esc(p.avatar ? `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.png?size=64` : "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="" width="32" height="32">
         <span>${flagOf(p.country)} ${esc(p.name)}</span></a>`;
     const eds = (r.data.editors || []).map(row).join("");

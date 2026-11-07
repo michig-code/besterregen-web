@@ -1,9 +1,13 @@
 // Profilseite: Rang, Punkte, erstellte Level und Completions einer Person
 (async function () {
   const app = document.getElementById("app");
-  const name = new URLSearchParams(location.search).get("name");
-  if (!name) { app.innerHTML = '<p class="status">Kein Profil ausgewählt.</p>'; return; }
-  const res = await api(`/profiles/${encodeURIComponent(name)}`);
+  const qs = new URLSearchParams(location.search);
+  const name = qs.get("name");
+  const discord = qs.get("discord");
+  if (!name && !discord) { app.innerHTML = '<p class="status">Kein Profil ausgewählt.</p>'; return; }
+  const res = discord
+    ? await api(`/profiles/d/${encodeURIComponent(discord)}`)
+    : await api(`/profiles/${encodeURIComponent(name)}`);
   if (!res.ok) { app.innerHTML = `<p class="status">${esc(errText(res.data))}</p>`; return; }
   const p = res.data;
   document.title = `${p.name} – Bester Regen`;
