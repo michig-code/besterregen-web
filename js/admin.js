@@ -255,8 +255,16 @@ async function loadDiscordMap() {
     const mapping = [...box.querySelectorAll("select[data-discord]")]
       .filter((sel) => sel.value)
       .map((sel) => ({ discordRoleId: sel.dataset.discord, siteRoleId: sel.value }));
+    const msg = document.getElementById("dmap-msg");
+    const ask = mapping.length
+      ? `${mapping.length} Zuordnung(en) speichern?`
+      : "Es ist keine Zuordnung ausgewählt. Alle bisherigen Zuordnungen werden entfernt. Fortfahren?";
+    if (!confirm(ask)) return;
+    msg.textContent = "Wird gespeichert …";
     const r = await api("/admin/discord-map", { method: "PUT", body: { mapping } });
-    document.getElementById("dmap-msg").textContent = r.ok ? `Gespeichert (${r.data.count} Zuordnungen).` : errText(r.data);
+    if (!r.ok) { msg.textContent = errText(r.data); return; }
+    msg.textContent = `Gespeichert: ${r.data.count} Zuordnung(en).`;
+    await loadDiscordMap();
   };
 }
 
