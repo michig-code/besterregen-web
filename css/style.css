@@ -704,3 +704,9 @@ details.more .info-table { margin-top: 10px; }
 
 .team-link { color: var(--text); text-decoration: none; border-radius: 10px; padding: 6px 8px; margin: 0 -8px; transition: background .2s ease; }
 .team-link:hover { background: var(--panel); color: var(--green); }
+
+/* ---------- Mitglieder einer Rolle ---------- */
+.role-members { display: grid; gap: 6px; margin: -2px 0 10px 24px; padding: 10px 12px; border-left: 2px solid var(--purple); }
+.rm-item { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.rm-item img { border-radius: 50%; }
+.rm-src { color: var(--muted); font-weight: 600; }

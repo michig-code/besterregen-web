@@ -145,6 +145,7 @@ async function loadRoles() {
           <strong>${esc(role.name)}</strong>
           <small>${(role.permissions || []).map(esc).join(", ") || "keine Rechte"}</small>
         </div>
+        <button class="chip-btn" data-members="${esc(role.id)}">Mitglieder</button>
         <button class="chip-btn" data-edit="${esc(role.id)}">Bearbeiten</button>
         <button class="chip-btn danger" data-delete="${esc(role.id)}">Löschen</button>
       </div>`).join("")
@@ -176,6 +177,28 @@ function bindRoleForm() {
     msg.textContent = "";
   });
   document.getElementById("roles").addEventListener("click", async (e) => {
+    const memBtn = e.target.closest("[data-members]");
+    if (memBtn) {
+      const row = memBtn.closest(".role-row");
+      const next = row.nextElementSibling;
+      if (next && next.classList.contains("role-members")) { next.remove(); return; }
+      const box = document.createElement("div");
+      box.className = "role-members";
+      box.innerHTML = '<p class="hint">Lädt …</p>';
+      row.after(box);
+      const r = await api(`/admin/roles/${memBtn.dataset.members}/members`);
+      if (!r.ok) { box.innerHTML = `<p class="hint">${esc(errText(r.data))}</p>`; return; }
+      const list = r.data.members || [];
+      box.innerHTML = list.length
+        ? list.map((mm) => `
+          <div class="rm-item">
+            <img src="${esc(mm.avatar ? `https://cdn.discordapp.com/avatars/${mm.discordId}/${mm.avatar}.png?size=64` : "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="" width="28" height="28">
+            <span>${esc(mm.name)}</span>
+            ${mm.source === "discord" ? '<small class="rm-src">über Discord</small>' : ""}
+          </div>`).join("")
+        : '<p class="hint">Noch niemand hat diese Rolle.</p>';
+      return;
+    }
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-delete]");
     if (editBtn) {

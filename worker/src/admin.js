@@ -63,6 +63,21 @@ export async function handleAdmin(request, url, env, ctx) {
     const rows = await db(env, "POST", "site_roles", v.role, { prefer: "return=representation" });
     return ctx.json({ role: rows && rows[0] }, 200, ctx.cors);
   }
+  // Wer hat diese Rolle?
+  const roleMembersM = path.match(/^\/admin\/roles\/([0-9a-f-]{36})\/members$/);
+  if (roleMembersM && method === "GET") {
+    const links = (await db(env, "GET", `user_site_roles?role_id=eq.${roleMembersM[1]}&select=discord_id,source`)) || [];
+    const ids = links.map((l) => encodeURIComponent(l.discord_id));
+    let users = [];
+    if (ids.length) {
+      users = (await db(env, "GET", `users?discord_id=in.(${ids.join(",")})&select=discord_id,name,avatar`)) || [];
+    }
+    const members = links.map((l) => {
+      const u = users.find((x) => x.discord_id === l.discord_id) || {};
+      return { discordId: l.discord_id, name: u.name || "Mitglied", avatar: u.avatar || null, source: l.source };
+    }).sort((x, y) => x.name.localeCompare(y.name, "de"));
+    return ctx.json({ members }, 200, ctx.cors);
+  }
   const roleMatch = path.match(/^\/admin\/roles\/([0-9a-f-]{36})$/);
   if (roleMatch && UUID.test(roleMatch[1]) && method === "PUT") {
     const v = validateRole(body, perms);
