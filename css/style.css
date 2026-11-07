@@ -710,3 +710,104 @@ details.more .info-table { margin-top: 10px; }
 .rm-item { display: flex; align-items: center; gap: 10px; font-weight: 700; }
 .rm-item img { border-radius: 50%; }
 .rm-src { color: var(--muted); font-weight: 600; }
+
+/* =========================================================
+   Responsive Feinschliff: Handy (bis 600px), Tablet (bis 960px), Desktop
+   ========================================================= */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, iframe, video { max-width: 100%; height: auto; }
+input, select, textarea, button { max-width: 100%; }
+
+/* Kopfzeile: auf kleinen Bildschirmen klappt die Navigation sauber um */
+.topbar { flex-wrap: wrap; }
+.topbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+@media (max-width: 960px) {
+  .topbar { padding: 10px 16px; }
+  .topbar nav a { padding: 7px 10px; font-size: .9rem; }
+}
+
+/* Tabellen dürfen seitlich scrollen, statt die Seite zu sprengen */
+.table-wrap, .records, .info-table { max-width: 100%; }
+.table-wrap { -webkit-overflow-scrolling: touch; }
+
+/* Karten und Abstände passen sich an */
+.card { min-width: 0; }
+.page-grid, .container { box-sizing: border-box; }
+
+@media (max-width: 960px) {
+  .hero { padding: 48px 18px 28px; }
+  .hero h1 { font-size: clamp(2rem, 7vw, 3rem); }
+  .admin-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+  .level-hero { grid-template-columns: 1fr; }
+  .page-grid { grid-template-columns: 1fr; }
+  .sidebar { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  body { font-size: 15px; }
+  .topbar { gap: 8px; }
+  .topbar nav { width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+  .lang-btn, .user-btn { flex: none; }
+  .user-dropdown { right: -4px; left: auto; max-width: calc(100vw - 24px); }
+  .bell-panel { right: -6px; }
+
+  /* Formulare untereinander, Buttons volle Breite */
+  .role-form { display: grid; gap: 12px; }
+  .form-actions { flex-direction: column; align-items: stretch; }
+  .form-actions .btn, .form-actions .chip-btn { width: 100%; text-align: center; }
+  .role-row { flex-wrap: wrap; }
+  .role-row .chip-btn { flex: 1 1 auto; }
+  .level-hero img, .level-img { width: 100%; }
+
+  /* Listen-Karten */
+  .level-list { gap: 10px; }
+  .level { padding: 12px; }
+
+  /* Rangliste und Mitglieder: weniger Spalten sichtbar */
+  .stats-table { min-width: 0; font-size: .9rem; }
+  .stats-table th, .stats-table td { padding: 9px 6px; }
+  .stats-table th:nth-child(5), .stats-table td:nth-child(5) { display: none; }
+
+  /* Verwaltung: Chips umbrechen */
+  .chips { gap: 5px; }
+  .chip-btn { font-size: .8rem; }
+  .member { flex-wrap: wrap; }
+  .member img { width: 34px; height: 34px; }
+
+  /* Profil */
+  .profile-hero { flex-direction: column; text-align: center; }
+  .profile-stats { justify-content: center; gap: 16px; }
+  .link-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+  /* Fußzeile */
+  .foot-inner { font-size: .85rem; }
+  .site-footer { padding: 18px 14px; }
+
+  /* Cookie-Hinweis nimmt volle Breite */
+  .consent { bottom: 10px; width: calc(100vw - 20px); }
+
+  /* Bereichs-Navigation */
+  .subnav { padding: 0 12px; }
+  .subnav a { font-size: .85rem; padding: 7px 12px; }
+}
+
+@media (max-width: 420px) {
+  .hero { padding: 36px 14px 22px; }
+  .hero p { font-size: .95rem; }
+  .card { padding: 14px; }
+  .stats-table th:nth-child(4), .stats-table td:nth-child(4) { display: none; }
+  .profile-avatar { width: 80px; height: 80px; }
+  .topbar .brand span { display: none; }
+}
+
+/* Große Bildschirme: Inhalte nicht zu breit auseinanderziehen */
+@media (min-width: 1400px) {
+  .page-grid, .container { max-width: 1240px; }
+}
+
+/* Touch-Geräte: größere Trefferflächen */
+@media (pointer: coarse) {
+  .chip-btn, .btn, .topbar nav a, .bell, .user-btn, .lang-btn { min-height: 40px; }
+  .level, .record-row, .team-result { min-height: 48px; }
+}
