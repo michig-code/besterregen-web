@@ -4,6 +4,7 @@
   const out = document.getElementById("level-list");
   const filter = document.getElementById("filter");
   let current = [];
+  let currentSlug = "";
 
   const res = await api("/lists");
   const lists = (res.data && res.data.lists) || [];
@@ -18,7 +19,7 @@
     if (!current.length) { out.innerHTML = '<p class="status">Hier gibt es noch keine Level.</p>'; return; }
     if (!items.length) { out.innerHTML = '<p class="status">Keine Treffer.</p>'; return; }
     out.innerHTML = items.map((lvl, i) => `
-      <a class="level level-link" href="/l/${esc(list.slug)}/${esc(lvl.position)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
+      <a class="level level-link" href="/l/${esc(currentSlug)}/${esc(lvl.position)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
         ${lvl.image_url ? `<img class="thumb" src="${esc(lvl.image_url)}" alt="" loading="lazy">` : `<div class="rank">#${esc(lvl.position)}</div>`}
         <div class="level-text">
           <h3><span class="pos">#${esc(lvl.position)}</span> ${esc(lvl.name)}</h3>
@@ -77,6 +78,7 @@
     out.innerHTML = '<p class="status">Lädt …</p>';
     const r = await api(`/lists/${list.slug}/levels`);
     current = (r.data && r.data.levels) || [];
+    currentSlug = list.slug;
     const badge = tabs.querySelector(`[data-count="${list.id}"]`);
     if (badge) badge.textContent = `${current.length} Level`;
     draw();
