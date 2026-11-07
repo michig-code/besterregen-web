@@ -654,3 +654,18 @@ details.more .info-table { margin-top: 10px; }
 .switch-row { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 10px 0; }
 .switch-row input { width: 20px; height: 20px; accent-color: var(--purple); }
 #sync-now:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- Team-Editor: Abschnitte, Suchfelder pro Person ---------- */
+.team-section { border: 1px solid var(--panel-border); border-radius: 14px; padding: 14px; margin-bottom: 14px; background: rgba(255,255,255,.02); }
+.team-section h3 { margin: 0 0 10px; }
+.team-people { display: grid; gap: 8px; margin-bottom: 10px; }
+.team-person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--panel); border: 1px solid var(--panel-border); }
+.team-person img { border-radius: 50%; }
+.team-person span { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-pickers { display: grid; gap: 10px; margin-bottom: 10px; }
+.team-picker { display: grid; gap: 8px; padding: 10px; border-radius: 12px; border: 1px dashed var(--purple); background: rgba(139,92,246,.06); }
+.team-picker .search { margin: 0; }
+.team-results { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.team-result { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; font-weight: 700; color: var(--text); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.team-result:hover { border-color: var(--green); }
+.team-result img { border-radius: 50%; }

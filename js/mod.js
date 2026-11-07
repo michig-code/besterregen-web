@@ -386,6 +386,185 @@ function openImport(id) {
   });
 }
 
+// Team einer Liste: Editoren und Helfer. Pro Rolle beliebig viele Personen, jede per eigenem Suchfeld
+async function openTeam(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const box = document.getElementById("order-box");
+  box.innerHTML = '<p class="status">Lädt …</p>';
+  const r = await api(`/lists/${x.slug}/staff`);
+  const team = { editor: (r.data.editors || []).slice(), helper: (r.data.helpers || []).slice() };
+  const avatarOf = (p) => (p.avatar ? `https://cdn.discordapp.com/avatars/${p.discordId}/${p.avatar}.png?size=64` : "https://cdn.discordapp.com/embed/avatars/0.png");
+  const flagOf = (c) => (c ? String.fromCodePoint(...c.toUpperCase().split("").map((ch) => 127397 + ch.charCodeAt(0))) : "");
+  const taken = () => new Set([...team.editor, ...team.helper].map((p) => p.discordId));
+  const LABEL = { editor: "Editoren", helper: "Helfer" };
+
+  function section(role) {
+    const people = team[role];
+    return `
+      <div class="team-section" data-role="${role}">
+        <h3>${LABEL[role]}</h3>
+        <div class="team-people">
+          ${people.map((p) => `
+            <div class="team-person">
+              <img src="${esc(avatarOf(p))}" alt="" width="32" height="32">
+              <span>${flagOf(p.country)} ${esc(p.name)}</span>
+              <button class="chip-btn danger" type="button" data-remove="${role}:${esc(p.discordId)}">Entfernen</button>
+            </div>`).join("") || '<p class="hint">Noch niemand.</p>'}
+        </div>
+        <div class="team-pickers"></div>
+        <button class="chip-btn" type="button" data-add-picker="${role}">+ ${role === "editor" ? "Editor" : "Helfer"} hinzufügen</button>
+      </div>`;
+  }
+
+  function render() {
+    box.innerHTML = `
+      <h2>Team: ${esc(x.name)}</h2>
+      <p class="hint">Mit „+ … hinzufügen“ öffnet sich ein Suchfeld. Wähle eine Person aus, sie wird gleich übernommen.</p>
+      ${section("editor")}
+      ${section("helper")}
+      <div class="form-actions">
+        <button class="btn" type="button" id="team-save">Speichern</button>
+        <button class="btn ghost" type="button" id="team-back">Zurück zur Liste</button>
+      </div>
+      <p class="hint" id="team-msg"></p>`;
+
+    box.querySelectorAll("[data-remove]").forEach((btn) => btn.addEventListener("click", () => {
+      const [role, did] = btn.dataset.remove.split(":");
+      team[role] = team[role].filter((p) => p.discordId !== did);
+      render();
+    }));
+    box.querySelectorAll("[data-add-picker]").forEach((btn) => btn.addEventListener("click", () => {
+      const role = btn.dataset.addPicker;
+      const holder = box.querySelector(`.team-section[data-role="${role}"] .team-pickers`);
+      if (holder.querySelector(".team-picker")) return; // nur ein offenes Suchfeld pro Rolle
+      const picker = document.createElement("div");
+      picker.className = "team-picker";
+      picker.innerHTML = `
+        <input type="search" class="search" placeholder="Name suchen …" autocomplete="off">
+        <div class="team-results"></div>
+        <button class="chip-btn" type="button" data-cancel>Abbrechen</button>`;
+      holder.appendChild(picker);
+      const input = picker.querySelector("input");
+      const results = picker.querySelector(".team-results");
+      input.focus();
+      let timer = null;
+      input.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          const q = input.value.trim();
+          if (!q) { results.innerHTML = ""; return; }
+          const res = await api(`/mod/members?q=${encodeURIComponent(q)}`);
+          const used = taken();
+          const list = (res.data.members || []).filter((mm) => !used.has(mm.discord_id));
+          results.innerHTML = list.length ? list.map((mm) => `
+            <button class="team-result" type="button" data-pick="${esc(mm.discord_id)}" data-name="${esc(mm.name)}" data-avatar="${esc(mm.avatar || "")}">
+              <img src="${esc(mm.avatar ? `https://cdn.discordapp.com/avatars/${mm.discord_id}/${mm.avatar}.png?size=64` : "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="" width="28" height="28">
+              <span>${esc(mm.name)}</span>
+            </button>`).join("") : '<p class="hint">Keine freie Person gefunden.</p>';
+        }, 300);
+      });
+      picker.querySelector("[data-cancel]").addEventListener("click", () => picker.remove());
+      picker.addEventListener("click", (e) => {
+        const pick = e.target.closest("[data-pick]");
+        if (!pick) return;
+        team[role].push({ discordId: pick.dataset.pick, name: pick.dataset.name, avatar: pick.dataset.avatar || null, country: null });
+        render();
+      });
+    }));
+
+    document.getElementById("team-save").addEventListener("click", async () => {
+      const res = await api(`/mod/lists/${x.id}/staff`, { method: "PUT", body: {
+        editors: team.editor.map((p) => p.discordId),
+        helpers: team.helper.map((p) => p.discordId),
+      }});
+      document.getElementById("team-msg").textContent = res.ok ? "Gespeichert." : errText(res.data);
+    });
+    document.getElementById("team-back").addEventListener("click", () => renderLists());
+  }
+  render();
+}
+
+// Liste löschen: Name muss genau eingetippt werden
+async function deleteList(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const typed = prompt(
+    `ACHTUNG: Die Liste „${x.name}“ wird samt allen Leveln, Records, Teams und Abos GELÖSCHT. Das kann nicht rückgängig gemacht werden.\n\nZur Bestätigung den Namen der Liste genau eintippen:`
+  );
+  if (typed === null) return;
+  const r = await api(`/mod/lists/${x.id}`, { method: "DELETE", body: { confirm: typed } });
+  if (!r.ok) {
+    alert(r.data.error === "confirm_mismatch" ? "Der Name stimmt nicht. Die Liste wurde nicht gelöscht." : errText(r.data));
+    return;
+  }
+  alert(`Die Liste „${x.name}“ wurde gelöscht.`);
+  renderLists();
+}
+
+// JSON-Import aus dem Import-Skript: Datei wählen, Vorschau prüfen, dann importieren
+function openImport(id) {
+  const x = lists.find((l) => l.id === id);
+  if (!x) return;
+  const box = document.getElementById("order-box");
+  box.innerHTML = `
+    <h2>Import in „${esc(x.name)}“</h2>
+    <p class="hint">Wähle die JSON-Datei, die das Import-Skript erstellt hat. Vorhandene Level werden nie überschrieben.</p>
+    <input id="imp-file" type="file" accept=".json,application/json">
+    <div id="imp-preview"></div>
+    <p class="hint" id="imp-msg"></p>`;
+  const msg = document.getElementById("imp-msg");
+  const prev = document.getElementById("imp-preview");
+  let data = null;
+  document.getElementById("imp-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      msg.textContent = "Die Datei ist keine gültige JSON-Datei.";
+      return;
+    }
+    if (!Array.isArray(data)) { msg.textContent = "Die Datei enthält keine Liste von Leveln."; return; }
+    const bad = data.filter((d) => !d.levelId).length;
+    const long = x.max_duration_seconds ? data.filter((d) => d.lengthSeconds && d.lengthSeconds > x.max_duration_seconds).length : 0;
+    prev.innerHTML = `
+      <p><strong>${data.length}</strong> Einträge gefunden.
+        ${bad ? `<span class="warn">${bad} ohne Level-ID werden übersprungen.</span>` : ""}
+        ${long ? `<span class="warn">${long} sind länger als ${esc(x.max_duration_seconds)} s und werden übersprungen.</span>` : ""}
+      </p>
+      <div class="table-wrap"><table class="stats-table">
+        <thead><tr><th>Platz</th><th>Name</th><th>Creator</th><th>Verifier</th><th>Level-ID</th><th class="num">Länge</th></tr></thead>
+        <tbody>${data.slice(0, 200).map((d) => `<tr>
+          <td class="rank-cell">${esc(d.rank)}</td><td>${esc(d.name)}</td><td>${esc(d.publisher || "")}</td>
+          <td>${esc(d.verifier || "")}</td><td>${esc(d.levelId || "–")}</td><td class="num">${esc(d.lengthSeconds ?? "–")}</td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="form-actions"><button class="btn" type="button" id="imp-go">Jetzt importieren</button></div>`;
+    document.getElementById("imp-go").addEventListener("click", async () => {
+      msg.textContent = "Wird importiert …";
+      let r = await api("/mod/import", { method: "POST", body: { listId: x.id, levels: data } });
+      if (!r.ok && r.data.error === "list_not_empty") {
+        const go = confirm(`Die Liste hat schon ${r.data.count} Level.\n\nSoll die Datei zusammengeführt werden?\n• Bekannte Level (gleiche Level-ID) werden aktualisiert, ihre Records bleiben erhalten.\n• Neue Level kommen dazu.\n• Level, die im Import fehlen, bleiben unverändert.`);
+        if (!go) { msg.textContent = "Abgebrochen. Es wurde nichts geändert."; return; }
+        msg.textContent = "Wird zusammengeführt …";
+        r = await api("/mod/import", { method: "POST", body: { listId: x.id, levels: data, mode: "merge" } });
+        if (!r.ok) { msg.textContent = errText(r.data); return; }
+        const sk2 = (r.data.skipped || []).map((k) => `Platz ${k.rank ?? "?"} (${k.name ?? "?"}): ${k.reason}`).join("\n");
+        msg.textContent = `Aktualisiert: ${r.data.updated}, neu: ${r.data.added}, Records neu: ${r.data.recordsAdded}, nicht im Import: ${r.data.notInImport}.` + (sk2 ? `\n${r.data.skipped.length} übersprungen:\n${sk2}` : "");
+        renderLists();
+        return;
+      }
+      if (!r.ok) {
+        msg.textContent = errText(r.data);
+        return;
+      }
+      const sk = (r.data.skipped || []).map((k) => `Platz ${k.rank ?? "?"} (${k.name ?? "?"}): ${k.reason}`).join("\n");
+      msg.textContent = `${r.data.imported} Level importiert.` + (sk ? `\n${r.data.skipped.length} übersprungen:\n${sk}` : "");
+      renderLists();
+    });
+  });
+}
+
 // Team einer Liste: Editoren und Helfer setzen
 async function openTeam(id) {
   const x = lists.find((l) => l.id === id);
