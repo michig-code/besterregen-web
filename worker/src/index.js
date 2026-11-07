@@ -27,6 +27,11 @@ export default {
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
+    // Kurzlinks: /l/{liste}/{platz} führt zum Level auf diesem Platz
+    if (url.pathname.startsWith("/l/")) {
+      return await shortLink(url, env);
+    }
+
     try {
       if (url.pathname === "/auth/discord") return authStart(env);
       if (url.pathname === "/auth/callback") return await authCallback(url, env);
@@ -426,4 +431,21 @@ async function setCountry(request, env) {
   if (c !== null && !/^[A-Z]{2}$/.test(c)) return { error: "invalid_country" };
   await db(env, "PATCH", `users?discord_id=eq.${session.discord_id}`, { country: c });
   return { ok: true };
+}
+
+// Kurzlink-Weiterleitung: /l/challenge/1 -> Level-Seite des Levels auf Platz 1
+async function shortLink(url, env) {
+  const parts = url.pathname.split("/").filter(Boolean); // ["l", slug, pos]
+  const slug = (parts[1] || "").toLowerCase();
+  const pos = parseInt(parts[2] || "", 10);
+  const fallback = new Response(null, { status: 302, headers: { Location: `${env.SITE_URL}/index.html` } });
+  if (!/^[a-z0-9-]{1,40}$/.test(slug)) return fallback;
+  const list = (await db(env, "GET", `lists?slug=eq.${slug}&select=id`))?.[0];
+  if (!list) return fallback;
+  if (!Number.isInteger(pos) || pos < 1) {
+    return new Response(null, { status: 302, headers: { Location: `${env.SITE_URL}/index.html` } });
+  }
+  const level = (await db(env, "GET", `levels?list_id=eq.${list.id}&position=eq.${pos}&select=id`))?.[0];
+  const target = level ? `${env.SITE_URL}/level.html?id=${level.id}` : `${env.SITE_URL}/index.html`;
+  return new Response(null, { status: 302, headers: { Location: target, "Cache-Control": "no-store" } });
 }

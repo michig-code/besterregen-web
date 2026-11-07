@@ -7,6 +7,8 @@
   const res = await api(`/levels/${encodeURIComponent(id)}`);
   if (!res.ok) { app.innerHTML = `<p class="status">${esc(errText(res.data))}</p>`; return; }
   const { level, records } = res.data;
+  // Kurzlink zum Teilen: nach Liste und Platz (z. B. besterregen.de/l/challenge/1)
+  const shortUrl = level.listSlug && level.position ? `${location.origin}/l/${level.listSlug}/${level.position}` : null;
   const contributors = res.data.contributors || [];
   document.title = `${level.name} – Bester Regen`;
 
@@ -32,6 +34,7 @@
         <p class="points-big">${esc(level.points)} <span>Punkte</span></p>
         <div class="form-actions">
           <a class="btn ghost" href="einreichen.html?record=${esc(level.id)}">Record einsenden</a>
+          ${shortUrl ? `<button class="btn ghost" type="button" id="copy-short" data-url="${esc(shortUrl)}">Link kopieren</button>` : ""}
         </div>
       </div>
     </section>
@@ -97,6 +100,11 @@
         </div>` : `<p class="hint">Noch keine bestätigten Records. <a href="einreichen.html?record=${esc(level.id)}">Sei der Erste!</a></p>`}
     </section>`;
 
+  const copyBtn = document.getElementById("copy-short");
+  if (copyBtn) copyBtn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(copyBtn.dataset.url); copyBtn.textContent = "Kopiert!"; }
+    catch { copyBtn.textContent = copyBtn.dataset.url; }
+  });
   const play = app.querySelector(".video-play");
   if (play) play.addEventListener("click", () => {
     const box = document.getElementById("video");

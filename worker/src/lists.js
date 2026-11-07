@@ -260,7 +260,7 @@ export async function handleContent(request, url, env, ctx) {
       `levels?id=eq.${levelMatch[1]}&select=id,list_id,position,name,creator,verifier,gd_level_id,video_url,image_url,duration_seconds,difficulty,requirement,song,objects,nong,creators,is_beat`);
     if (!levels || !levels[0]) return json({ error: "not_found" }, 404);
     const level = levels[0];
-    const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places,scoring`))?.[0] || {};
+    const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places,scoring,slug`))?.[0] || {};
     const records = (await db(env, "GET",
       `records?level_id=eq.${level.id}&status=eq.approved&select=id,player_name,video_url,approved_at,percent&order=approved_at.asc`)) || [];
     const contributors = (await db(env, "GET",
@@ -272,6 +272,7 @@ export async function handleContent(request, url, env, ctx) {
       level: {
         ...level,
         listName: list.name,
+        listSlug: list.slug,
         maxPlaces: list.max_places,
         points,
         completions: isBeat ? (contributors.length ? 1 : records.length) : records.length,

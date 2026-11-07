@@ -8,7 +8,10 @@ compatibility_date = "2025-01-01"
 # gesetzt.
 
 # Route: alle Anfragen unter besterregen.de/api/* gehen an diesen Worker
-routes = [{ pattern = "besterregen.de/api/*", zone_name = "besterregen.de" }]
+routes = [
+  { pattern = "besterregen.de/api/*", zone_name = "besterregen.de" },
+  { pattern = "besterregen.de/l/*", zone_name = "besterregen.de" },
+]
 
 [vars]
 SITE_URL = "https://besterregen.de"
