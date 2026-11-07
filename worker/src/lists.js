@@ -313,7 +313,7 @@ export async function handleContent(request, url, env, ctx) {
       const names = `${lv.creator || ""}, ${lv.creators || ""}`.toLowerCase().replace(/ and more/g, "");
       return names.split(",").map((s) => s.trim()).includes(key);
     }).map((lv) => ({
-      id: lv.id, name: lv.name, position: lv.position, listName: listById[lv.list_id]?.name || "",
+      id: lv.id, name: lv.name, position: lv.position, listName: listById[lv.list_id]?.name || "", listSlug: listById[lv.list_id]?.slug || "",
       listSlug: listById[lv.list_id]?.slug || "", verifier: lv.verifier,
       points: scoreFor(listById[lv.list_id], lv.position, 100, lv.requirement),
     })).sort((x, y) => (x.position || 9999) - (y.position || 9999));
@@ -328,7 +328,7 @@ export async function handleContent(request, url, env, ctx) {
         const lv = levelById[lid];
         if (!lv) return null;
         return {
-          levelId: lid, name: lv.name, position: lv.position, listName: listById[lv.list_id]?.name || "",
+          levelId: lid, name: lv.name, position: lv.position, listName: listById[lv.list_id]?.name || "", listSlug: listById[lv.list_id]?.slug || "",
           percent: pct, points: scoreFor(listById[lv.list_id], lv.position, pct, lv.requirement),
         };
       }).filter(Boolean).sort((x, y) => (x.position || 9999) - (y.position || 9999));

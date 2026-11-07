@@ -30,7 +30,7 @@
     <section class="card">
       <h2>Erstellte Level</h2>
       ${p.created.length ? `<div class="records">${p.created.map((c) => `
-        <a class="record-row link-row" href="level.html?id=${esc(c.id)}">
+        <a class="record-row link-row" href="/l/${esc(c.listSlug)}/${esc(c.position)}">
           <span><strong>#${esc(c.position)} ${esc(c.name)}</strong><small> · ${esc(c.listName)} · verifiziert von ${esc(c.verifier)}</small></span>
           <span>${esc(c.points)} Punkte</span>
         </a>`).join("")}</div>` : '<p class="hint">Keine erstellten Level.</p>'}
@@ -39,7 +39,7 @@
     <section class="card">
       <h2>Completions</h2>
       ${p.completions.length ? `<div class="records">${p.completions.map((c) => `
-        <a class="record-row link-row" href="level.html?id=${esc(c.levelId)}">
+        <a class="record-row link-row" href="/l/${esc(c.listSlug)}/${esc(c.position)}">
           <span><strong>#${esc(c.position)} ${esc(c.name)}</strong><small> · ${esc(c.listName)} · ${esc(c.percent)} %</small></span>
           <span>${esc(c.points)} Punkte</span>
         </a>`).join("")}</div>` : '<p class="hint">Noch keine bestätigten Completions.</p>'}

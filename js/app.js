@@ -18,7 +18,7 @@
     if (!current.length) { out.innerHTML = '<p class="status">Hier gibt es noch keine Level.</p>'; return; }
     if (!items.length) { out.innerHTML = '<p class="status">Keine Treffer.</p>'; return; }
     out.innerHTML = items.map((lvl, i) => `
-      <a class="level level-link" href="level.html?id=${esc(lvl.id)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
+      <a class="level level-link" href="/l/${esc(list.slug)}/${esc(lvl.position)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
         ${lvl.image_url ? `<img class="thumb" src="${esc(lvl.image_url)}" alt="" loading="lazy">` : `<div class="rank">#${esc(lvl.position)}</div>`}
         <div class="level-text">
           <h3><span class="pos">#${esc(lvl.position)}</span> ${esc(lvl.name)}</h3>
