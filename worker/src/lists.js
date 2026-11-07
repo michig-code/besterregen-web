@@ -181,6 +181,11 @@ export async function handleContent(request, url, env, ctx) {
     if (beatLevels.length) {
       const beatIds = beatLevels.map((lv) => lv.id).join(",");
       const contribs = (await db(env, "GET", `level_contributors?level_id=in.(${beatIds})&select=level_id,discord_id,name`)) || [];
+      // Mitwirkende werden über ihren GD-Namen mit einem verknüpften Discord-Konto verbunden
+      const discordByGdName = new Map((links || []).map((l2) => [String(l2.gd_name).toLowerCase(), l2.discord_id]));
+      contribs.forEach((c) => {
+        if (!c.discord_id) c.discord_id = discordByGdName.get(String(c.name).toLowerCase()) || null;
+      });
       const byLevel = new Map();
       contribs.forEach((c) => {
         if (!byLevel.has(c.level_id)) byLevel.set(c.level_id, []);
