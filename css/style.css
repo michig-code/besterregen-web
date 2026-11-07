@@ -697,3 +697,7 @@ details.more .info-table { margin-top: 10px; }
 .link-row small { color: var(--muted); }
 .type-link { color: var(--cyan); text-decoration: none; }
 .type-link:hover { color: var(--green); }
+
+/* ---------- Tags ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; }
+.tag { display: inline-block; font-size: .8rem; font-weight: 800; padding: 4px 11px; border-radius: 999px; color: var(--c, var(--purple)); border: 1px solid var(--c, var(--purple)); background: color-mix(in srgb, var(--c, var(--purple)) 14%, transparent); }

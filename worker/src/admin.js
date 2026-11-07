@@ -52,8 +52,10 @@ export async function handleAdmin(request, url, env, ctx) {
 
   // Rollen
   if (path === "/admin/roles" && method === "GET") {
-    const roles = await db(env, "GET", "site_roles?select=*&order=name.asc");
-    return ctx.json({ roles: roles || [] }, 200, ctx.cors);
+    const roles = (await db(env, "GET", "site_roles?select=*&order=name.asc")) || [];
+    roles.forEach((r) => { r.weight = roleWeight(r.permissions); });
+    roles.sort((x, y) => y.weight - x.weight || x.name.localeCompare(y.name, "de"));
+    return ctx.json({ roles }, 200, ctx.cors);
   }
   if (path === "/admin/roles" && method === "POST") {
     const v = validateRole(body, perms);
@@ -73,9 +75,43 @@ export async function handleAdmin(request, url, env, ctx) {
     return ctx.json({ ok: true }, 200, ctx.cors);
   }
 
+  // Discord-Rollen des Servers (über den Bot) für die Zuordnung
+  if (path === "/admin/discord-roles" && method === "GET") {
+    if (!has(perms, "roles.manage")) return ctx.json({ error: "forbidden" }, 403, ctx.cors);
+    const res = await fetch(`https://discord.com/api/v10/guilds/${env.GUILD_ID}/roles`, {
+      headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
+    });
+    if (!res.ok) return ctx.json({ error: "discord_roles_failed" }, 502, ctx.cors);
+    const all = await res.json();
+    const roles = all
+      .filter((r) => r.id !== env.GUILD_ID)
+      .sort((x, y) => y.position - x.position)
+      .map((r) => ({ id: r.id, name: r.name, color: r.color ? "#" + r.color.toString(16).padStart(6, "0") : "#999999" }));
+    return ctx.json({ roles }, 200, ctx.cors);
+  }
+
+  // Zuordnung Discord-Rolle -> Seiten-Rolle speichern
+  if (path === "/admin/discord-map" && method === "GET") {
+    if (!has(perms, "roles.manage")) return ctx.json({ error: "forbidden" }, 403, ctx.cors);
+    const rows = (await db(env, "GET", "discord_role_map?select=discord_role_id,site_role_id")) || [];
+    return ctx.json({ mapping: rows }, 200, ctx.cors);
+  }
+  if (path === "/admin/discord-map" && method === "PUT") {
+    if (!has(perms, "roles.manage")) return ctx.json({ error: "forbidden" }, 403, ctx.cors);
+    const b = await request.json().catch(() => ({}));
+    const rows = (Array.isArray(b?.mapping) ? b.mapping : [])
+      .filter((m) => /^\d{5,25}$/.test(String(m?.discordRoleId)) && UUID.test(m?.siteRoleId || ""))
+      .map((m) => ({ discord_role_id: String(m.discordRoleId), site_role_id: m.siteRoleId }));
+    await db(env, "DELETE", "discord_role_map?discord_role_id=neq.0");
+    if (rows.length) await db(env, "POST", "discord_role_map", rows, { prefer: "return=minimal" });
+    await applyDiscordRoles(env);
+    return ctx.json({ ok: true, count: rows.length }, 200, ctx.cors);
+  }
+
   // Discord-Mitglieder synchronisieren (über den Bot)
   if (path === "/admin/members/sync" && method === "POST") {
     const count = await syncMembers(env);
+    await applyDiscordRoles(env);
     return ctx.json({ ok: true, count }, 200, ctx.cors);
   }
 
@@ -218,6 +254,7 @@ export async function syncMembers(env) {
         name: String(m.nick || m.user.global_name || m.user.username || "Mitglied")
           .replace(/[^\p{L}\p{N} ._\-]/gu, "").trim().slice(0, 64) || "Mitglied",
         avatar: m.user.avatar || null,
+        roles: Array.isArray(m.roles) ? m.roles : [],
         updated_at: new Date().toISOString(),
       }));
     for (let i = 0; i < rows.length; i += 400) {
@@ -232,4 +269,44 @@ export async function syncMembers(env) {
     await db(env, "DELETE", `guild_members?updated_at=lt.${encodeURIComponent(started)}`);
   }
   return total;
+}
+
+// Stärke eines Rangs: höchstes Recht bestimmt die Reihenfolge. Ohne Rechte = Tag (0).
+const ROLE_WEIGHT = { admin: 100, "roles.manage": 80, "lists.manage": 60, "submissions.review": 50, "notifications.manage": 40 };
+export function roleWeight(perms) {
+  if (!perms || !perms.length) return 0;
+  return Math.max(...perms.map((p) => ROLE_WEIGHT[p] ?? 10));
+}
+
+// Discord-Rollen auf Seiten-Rollen übertragen (nur Zuordnungen mit source = 'discord')
+export async function applyDiscordRoles(env) {
+  const map = (await db(env, "GET", "discord_role_map?select=discord_role_id,site_role_id")) || [];
+  if (!map.length) return;
+  const members = (await db(env, "GET", "guild_members?select=discord_id,name,avatar,roles")) || [];
+  const bySite = new Map();
+  for (const m of map) {
+    if (!bySite.has(m.site_role_id)) bySite.set(m.site_role_id, new Set());
+    bySite.get(m.site_role_id).add(m.discord_role_id);
+  }
+  for (const [siteRoleId, discordRoles] of bySite) {
+    const desired = new Map();
+    members.forEach((mm) => {
+      if ((mm.roles || []).some((r) => discordRoles.has(r))) desired.set(mm.discord_id, mm);
+    });
+    const current = (await db(env, "GET", `user_site_roles?role_id=eq.${siteRoleId}&source=eq.discord&select=discord_id`)) || [];
+    const currentIds = new Set(current.map((c) => c.discord_id));
+    const toAdd = [...desired.keys()].filter((id) => !currentIds.has(id));
+    const toRemove = [...currentIds].filter((id) => !desired.has(id));
+    if (toAdd.length) {
+      await db(env, "POST", "users", toAdd.map((id) => ({
+        discord_id: id, name: desired.get(id).name || "Mitglied", avatar: desired.get(id).avatar || null,
+      })), { prefer: "return=minimal,resolution=ignore-duplicates" });
+      await db(env, "POST", "user_site_roles", toAdd.map((id) => ({ discord_id: id, role_id: siteRoleId, source: "discord" })), {
+        prefer: "return=minimal,resolution=ignore-duplicates",
+      });
+    }
+    if (toRemove.length) {
+      await db(env, "DELETE", `user_site_roles?role_id=eq.${siteRoleId}&source=eq.discord&discord_id=in.(${toRemove.map((i) => encodeURIComponent(i)).join(",")})`);
+    }
+  }
 }

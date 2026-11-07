@@ -108,6 +108,14 @@ async function init() {
       </section>
     </div>
 
+    <section class="card" id="dmap-card">
+      <h2>Discord-Rollen übernehmen</h2>
+      <p class="hint">Ordne jeder Discord-Rolle eine Seiten-Rolle zu. Mitglieder bekommen sie beim Synchronisieren automatisch und verlieren sie, wenn die Discord-Rolle entfernt wird. Rollen ohne Rechte werden als Tag auf dem Profil angezeigt.</p>
+      <div id="dmap-list" class="role-list"><p class="hint">Lädt …</p></div>
+      <div class="form-actions"><button class="btn" type="button" id="dmap-save">Zuordnung speichern</button></div>
+      <p class="hint" id="dmap-msg"></p>
+    </section>
+
     <section class="card">
       <h2>Protokoll</h2>
       <p class="hint">Wer hat wann welche Rolle vergeben oder entfernt.</p>
@@ -118,6 +126,7 @@ async function init() {
   bindMembers();
   renderLetters();
   await loadRoles();
+  await loadDiscordMap();
   await loadMembers(true);
   if (!M.lastSynced) await syncMembers();
   await loadAudit();
@@ -200,6 +209,32 @@ function resetRoleForm() {
   document.getElementById("form-title").textContent = "Neue Rolle";
   document.getElementById("role-save").textContent = "Rolle speichern";
   document.getElementById("role-cancel").hidden = true;
+}
+
+// ---------- Discord-Rollen-Zuordnung ----------
+async function loadDiscordMap() {
+  const box = document.getElementById("dmap-list");
+  const [dr, mp] = await Promise.all([api("/admin/discord-roles"), api("/admin/discord-map")]);
+  if (!dr.ok) { box.innerHTML = `<p class="hint">${esc(errText(dr.data))}</p>`; return; }
+  const current = Object.fromEntries(((mp.data && mp.data.mapping) || []).map((x) => [x.discord_role_id, x.site_role_id]));
+  const options = `<option value="">– keine Zuordnung –</option>` + roles.map((r) =>
+    `<option value="${esc(r.id)}">${esc(r.name)}${r.weight === 0 ? " (Tag)" : ""}</option>`).join("");
+  box.innerHTML = (dr.data.roles || []).map((d) => `
+    <div class="role-row">
+      <span class="dot" style="background:${esc(d.color)}"></span>
+      <div class="role-info"><strong>${esc(d.name)}</strong></div>
+      <select class="role-form-select" data-discord="${esc(d.id)}">${options.replace(`value="${esc(current[d.id] || "")}"`, `value="${esc(current[d.id] || "")}" selected`)}</select>
+    </div>`).join("") || '<p class="hint">Keine Discord-Rollen gefunden.</p>';
+  box.querySelectorAll("select[data-discord]").forEach((sel) => {
+    sel.value = current[sel.dataset.discord] || "";
+  });
+  document.getElementById("dmap-save").onclick = async () => {
+    const mapping = [...box.querySelectorAll("select[data-discord]")]
+      .filter((sel) => sel.value)
+      .map((sel) => ({ discordRoleId: sel.dataset.discord, siteRoleId: sel.value }));
+    const r = await api("/admin/discord-map", { method: "PUT", body: { mapping } });
+    document.getElementById("dmap-msg").textContent = r.ok ? `Gespeichert (${r.data.count} Zuordnungen).` : errText(r.data);
+  };
 }
 
 // ---------- Mitglieder ----------

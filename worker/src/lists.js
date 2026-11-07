@@ -282,7 +282,17 @@ export async function handleContent(request, url, env, ctx) {
         };
       }).filter(Boolean).sort((x, y) => (x.position || 9999) - (y.position || 9999));
     }
+    // Tags: Rollen ohne Rechte, die dem Profil zugeordnet sind
+    let tags = [];
+    if (me) {
+      const links = (await db(env, "GET", `user_site_roles?discord_id=eq.${encodeURIComponent(me.discordId)}&select=role_id`)) || [];
+      if (links.length) {
+        const roles = (await db(env, "GET", `site_roles?id=in.(${links.map((x) => x.role_id).join(",")})&select=name,color,permissions`)) || [];
+        tags = roles.filter((r) => !r.permissions || r.permissions.length === 0).map((r) => ({ name: r.name, color: r.color }));
+      }
+    }
     return json({
+      tags,
       name: me ? me.name : name,
       avatar: me ? me.avatar : null,
       rank: me ? me.rank : null,

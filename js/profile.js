@@ -13,6 +13,7 @@
       <img class="profile-avatar" src="${esc(avatar)}" alt="" width="96" height="96">
       <div>
         <h1>${esc(p.name)}</h1>
+        ${(p.tags || []).length ? `<div class="tags">${p.tags.map((t) => `<span class="tag" style="--c:${esc(t.color)}">${esc(t.name)}</span>`).join("")}</div>` : ""}
         <p class="hint">${p.rank ? `Rang ${p.tied ? "=" : ""}${esc(p.rank)} auf der Rangliste` : "Noch nicht auf der Rangliste"}</p>
         <div class="profile-stats">
           <div><strong>${esc(p.points)}</strong><small>Punkte</small></div>
