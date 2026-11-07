@@ -109,15 +109,23 @@ export async function handleContent(request, url, env, ctx) {
     const list = (await db(env, "GET", `lists?id=eq.${level.list_id}&select=name,max_places`))?.[0] || {};
     const records = (await db(env, "GET",
       `records?level_id=eq.${level.id}&status=eq.approved&select=id,player_name,video_url,approved_at&order=approved_at.asc`)) || [];
+    const contributors = (await db(env, "GET",
+      `level_contributors?level_id=eq.${level.id}&select=name,part,position&order=position.asc`)) || [];
+    const points = pointsFor(level.position, list.max_places);
+    const isBeat = !!level.is_beat;
+    const share = isBeat && contributors.length ? Math.round((points / contributors.length) * 100) / 100 : null;
     return json({
       level: {
         ...level,
         listName: list.name,
         maxPlaces: list.max_places,
-        points: pointsFor(level.position, list.max_places),
-        completions: records.length,
+        points,
+        completions: isBeat ? (contributors.length ? 1 : records.length) : records.length,
+        isBeat,
+        shareEach: share,
       },
       records,
+      contributors: contributors.map((c) => ({ ...c, points: share })),
     });
   }
 
@@ -165,6 +173,38 @@ export async function handleContent(request, url, env, ctx) {
         completions: levelIds.size,
         created,
       });
+    }
+
+    // Community Beats: Punkte werden gleichmäßig auf alle Mitwirkenden verteilt.
+    // Gezählt werden nur Mitwirkende, die einen GD-Account verknüpft haben.
+    const beatLevels = (levels || []).filter((lv) => lv.is_beat);
+    if (beatLevels.length) {
+      const beatIds = beatLevels.map((lv) => lv.id).join(",");
+      const contribs = (await db(env, "GET", `level_contributors?level_id=in.(${beatIds})&select=level_id,discord_id,name`)) || [];
+      const byLevel = new Map();
+      contribs.forEach((c) => {
+        if (!byLevel.has(c.level_id)) byLevel.set(c.level_id, []);
+        byLevel.get(c.level_id).push(c);
+      });
+      for (const lv of beatLevels) {
+        const list2 = byLevel.get(lv.id) || [];
+        if (!list2.length) continue;
+        const share = pointsFor(lv.position, listById[lv.list_id]?.max_places) / list2.length;
+        for (const c of list2) {
+          const gd = c.discord_id && gdByDiscord.get(c.discord_id);
+          if (!gd) continue;
+          let row = rows.find((r) => r.discordId === c.discord_id);
+          if (!row) {
+            row = { discordId: c.discord_id, name: gd, avatar: avatarByDiscord.get(c.discord_id)
+              ? `https://cdn.discordapp.com/avatars/${c.discord_id}/${avatarByDiscord.get(c.discord_id)}.png?size=64` : null,
+              points: 0, completions: 0, created: 0 };
+            rows.push(row);
+          }
+          row.points += share;
+          row.completions += 1;
+        }
+      }
+      rows.forEach((r) => { r.points = Math.round(r.points * 100) / 100; });
     }
 
     rows.sort((x, y) => y.points - x.points || y.completions - x.completions || x.name.localeCompare(y.name, "de"));
@@ -670,6 +710,15 @@ export async function handleContent(request, url, env, ctx) {
     const text = (key, max) => { if (typeof b?.[key] === "string") patch[key] = clean(b[key], max); };
     text("name", 80); text("creator", 60); text("verifier", 60);
     text("difficulty", 40); text("song", 80); text("nong", 80); text("creators", 200);
+    if (typeof b?.isBeat === "boolean") patch.is_beat = b.isBeat;
+    let contributorRows = null;
+    if (Array.isArray(b?.contributors)) {
+      contributorRows = b.contributors
+        .map((c) => ({ name: clean(c?.name, 40), part: clean(c?.part, 20) || null }))
+        .filter((c) => c.name)
+        .slice(0, 30)
+        .map((c, i) => ({ level_id: levelEditM[1], name: c.name, part: c.part, position: i + 1 }));
+    }
     if ("requirement" in (b || {})) {
       const rq = Number(b.requirement);
       if (!Number.isInteger(rq) || rq < 1 || rq > 100) return json({ error: "invalid_requirement" }, 400);
@@ -696,9 +745,13 @@ export async function handleContent(request, url, env, ctx) {
       if (max && d > max) return json({ error: "too_long", max }, 400);
       patch.duration_seconds = d;
     }
-    if (!Object.keys(patch).length) return json({ error: "missing_fields" }, 400);
+    if (!Object.keys(patch).length && contributorRows === null) return json({ error: "missing_fields" }, 400);
     if (patch.name === "" || patch.creator === "" || patch.verifier === "") return json({ error: "missing_fields" }, 400);
-    await db(env, "PATCH", `levels?id=eq.${levelEditM[1]}`, patch);
+    if (Object.keys(patch).length) await db(env, "PATCH", `levels?id=eq.${levelEditM[1]}`, patch);
+    if (contributorRows !== null) {
+      await db(env, "DELETE", `level_contributors?level_id=eq.${levelEditM[1]}`);
+      if (contributorRows.length) await db(env, "POST", "level_contributors", contributorRows, { prefer: "return=minimal" });
+    }
     return json({ ok: true });
   }
 

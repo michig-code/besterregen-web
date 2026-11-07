@@ -7,6 +7,7 @@
   const res = await api(`/levels/${encodeURIComponent(id)}`);
   if (!res.ok) { app.innerHTML = `<p class="status">${esc(errText(res.data))}</p>`; return; }
   const { level, records } = res.data;
+  const contributors = res.data.contributors || [];
   document.title = `${level.name} – Bester Regen`;
 
   const yt = (url) => {
@@ -65,6 +66,19 @@
         </table>
       </section>
     </div>
+
+    ${level.isBeat || contributors.length ? `
+    <section class="card">
+      <h2>Mitwirkende</h2>
+      <p class="hint">${level.isBeat ? "Community Beat: Die Punkte werden gleichmäßig verteilt." : ""}</p>
+      <div class="records">
+        ${contributors.map((c) => `
+          <div class="record-row">
+            <strong>${esc(c.name)}</strong>
+            <span>${c.part ? esc(c.part) : ""}${c.points != null ? ` · ${esc(c.points)} Punkte` : ""}</span>
+          </div>`).join("") || '<p class="hint">Noch keine Mitwirkenden eingetragen.</p>'}
+      </div>
+    </section>` : ""}
 
     <section class="card">
       <h2>Verifizierungs-Video</h2>

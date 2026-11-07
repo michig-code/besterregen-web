@@ -678,6 +678,8 @@ function editLevel(levelId, slug) {
         <label>GD-Level-ID <input name="gdLevelId" inputmode="numeric" maxlength="12" required value="${esc(lv.gd_level_id)}"></label>
         <label>Länge in Sekunden <input name="durationSeconds" type="number" min="1" value="${esc(lv.duration_seconds ?? "")}"></label>
         <label>Video-Link <input name="videoUrl" type="url" maxlength="300" required value="${esc(lv.video_url)}"></label>
+        <label class="switch-row"><input type="checkbox" name="isBeat" ${lv.isBeat ? "checked" : ""}> <span>Community Beat (Punkte werden auf die Mitwirkenden verteilt)</span></label>
+        <label>Mitwirkende, eine Zeile pro Person: <em>Name | Teil</em> <textarea name="contributors" rows="5" placeholder="Max | Teil 1&#10;Lisa | Teil 2">${esc((lv.contributors || []).map((c) => c.part ? `${c.name} | ${c.part}` : c.name).join("\n"))}</textarea></label>
         <label>Mehrere Creator (optional, durch Komma getrennt) <input name="creators" maxlength="200" value="${esc(lv.creators || "")}"></label>
         <label>Schwierigkeit <input name="difficulty" maxlength="40" value="${esc(lv.difficulty || "")}"></label>
         <label>Benötigter Fortschritt in % <input name="requirement" type="number" min="1" max="100" value="${esc(lv.requirement || 100)}"></label>
@@ -700,6 +702,11 @@ function editLevel(levelId, slug) {
         durationSeconds: f.durationSeconds ? Number(f.durationSeconds) : undefined,
         videoUrl: f.videoUrl,
         creators: f.creators,
+        isBeat: !!e.target.isBeat.checked,
+        contributors: (f.contributors || "").split("\n").map((ln) => ln.trim()).filter(Boolean).map((ln) => {
+          const [name, part] = ln.split("|").map((v) => v.trim());
+          return { name, part: part || null };
+        }),
         difficulty: f.difficulty,
         requirement: f.requirement ? Number(f.requirement) : undefined,
         song: f.song,
