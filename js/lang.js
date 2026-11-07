@@ -13,6 +13,6 @@
     if (next === "en") document.documentElement.dataset.lang = "en";
     else delete document.documentElement.dataset.lang;
     try { localStorage.setItem("br_lang", next); } catch {}
-    apply();
+    location.reload();
   });
 })();
