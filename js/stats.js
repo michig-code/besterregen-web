@@ -28,7 +28,7 @@
         <td class="rank-cell">${p.tied ? "=" : ""}${esc(p.rank)}</td>
         <td class="player-cell">
           <img src="${esc(p.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="" width="30" height="30">
-          <strong>${esc(p.name)}</strong>
+          <a class="type-link" href="profile.html?name=${encodeURIComponent(p.name)}"><strong>${esc(p.name)}</strong></a>
         </td>
         <td class="num">${esc(p.points)}</td>
         <td class="num">${esc(p.completions)}</td>

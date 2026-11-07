@@ -63,6 +63,104 @@ async function reorderLevels(env, ids) {
     db(env, "PATCH", `levels?id=eq.${id}`, { position: i + 1 })));
 }
 
+export async function buildRanking(env) {
+  const [links, users, levels, lists, records] = await Promise.all([
+    db(env, "GET", "gd_links?select=discord_id,gd_name"),
+    db(env, "GET", "users?select=discord_id,avatar"),
+    db(env, "GET", "levels?select=id,list_id,position,creator,requirement"),
+    db(env, "GET", "lists?select=id,max_places,scoring"),
+    db(env, "GET", "records?status=eq.approved&select=level_id,submitted_by,percent"),
+  ]);
+  const gdByDiscord = new Map((links || []).map((l) => [l.discord_id, l.gd_name]));
+  const avatarByDiscord = new Map((users || []).map((u) => [u.discord_id, u.avatar]));
+  const listById = Object.fromEntries((lists || []).map((l) => [l.id, l]));
+  const levelById = Object.fromEntries((levels || []).map((l) => [l.id, l]));
+
+  // pro Discord-Konto: welche Level geschafft wurden (jedes Level nur einmal)
+  const done = new Map();
+  for (const r of records || []) {
+    const gd = gdByDiscord.get(r.submitted_by);
+    const lv = levelById[r.level_id];
+    if (!gd || !lv) continue;
+    if (!done.has(r.submitted_by)) done.set(r.submitted_by, new Map());
+    const m2 = done.get(r.submitted_by);
+    m2.set(r.level_id, Math.max(m2.get(r.level_id) || 0, r.percent ?? 100));
+  }
+
+  const rows = [];
+  for (const [discordId, levelMap] of done) {
+    const gd = gdByDiscord.get(discordId);
+    let points = 0;
+    for (const [lid, pct] of levelMap) {
+      const lv = levelById[lid];
+      points += scoreFor(listById[lv.list_id], lv.position, pct, lv.requirement);
+    }
+    const levelIds = new Set(levelMap.keys());
+    const created = (levels || []).filter((lv) => lv.creator && lv.creator.trim().toLowerCase() === gd.trim().toLowerCase()).length;
+    rows.push({
+      discordId,
+      name: gd,
+      avatar: avatarByDiscord.get(discordId)
+        ? `https://cdn.discordapp.com/avatars/${discordId}/${avatarByDiscord.get(discordId)}.png?size=64`
+        : null,
+      points: Math.round(points * 100) / 100,
+      completions: levelIds.size,
+      created,
+    });
+  }
+
+  // Community Beats: Punkte werden gleichmäßig auf alle Mitwirkenden verteilt.
+  // Gezählt werden nur Mitwirkende, die einen GD-Account verknüpft haben.
+  const beatLevels = (levels || []).filter((lv) => lv.is_beat);
+  if (beatLevels.length) {
+    const beatIds = beatLevels.map((lv) => lv.id).join(",");
+    const contribs = (await db(env, "GET", `level_contributors?level_id=in.(${beatIds})&select=level_id,discord_id,name`)) || [];
+    // Mitwirkende werden über ihren GD-Namen mit einem verknüpften Discord-Konto verbunden
+    const discordByGdName = new Map((links || []).map((l2) => [String(l2.gd_name).toLowerCase(), l2.discord_id]));
+    contribs.forEach((c) => {
+      if (!c.discord_id) c.discord_id = discordByGdName.get(String(c.name).toLowerCase()) || null;
+    });
+    const byLevel = new Map();
+    contribs.forEach((c) => {
+      if (!byLevel.has(c.level_id)) byLevel.set(c.level_id, []);
+      byLevel.get(c.level_id).push(c);
+    });
+    for (const lv of beatLevels) {
+      const list2 = byLevel.get(lv.id) || [];
+      if (!list2.length) continue;
+      const share = pointsFor(lv.position, listById[lv.list_id]?.max_places) / list2.length;
+      for (const c of list2) {
+        const gd = c.discord_id && gdByDiscord.get(c.discord_id);
+        if (!gd) continue;
+        let row = rows.find((r) => r.discordId === c.discord_id);
+        if (!row) {
+          row = { discordId: c.discord_id, name: gd, avatar: avatarByDiscord.get(c.discord_id)
+            ? `https://cdn.discordapp.com/avatars/${c.discord_id}/${avatarByDiscord.get(c.discord_id)}.png?size=64` : null,
+            points: 0, completions: 0, created: 0 };
+          rows.push(row);
+        }
+        row.points += share;
+        row.completions += 1;
+      }
+    }
+    rows.forEach((r) => { r.points = Math.round(r.points * 100) / 100; });
+  }
+
+  rows.sort((x, y) => y.points - x.points || y.completions - x.completions || x.name.localeCompare(y.name, "de"));
+  // Gleichstand: gleiche Punkte -> gleicher Platz (1, 2, 2, 4 ...)
+  let rank = 0;
+  let prev = null;
+  const players = rows.map((p, i) => {
+    if (prev === null || p.points !== prev) rank = i + 1;
+    prev = p.points;
+    return { ...p, rank };
+  });
+  players.forEach((p) => {
+    p.tied = players.filter((q) => q.rank === p.rank).length > 1;
+  });
+  return players.slice(0, 300);
+}
+
 export async function handleContent(request, url, env, ctx) {
   const path = url.pathname;
   const method = request.method;
@@ -148,104 +246,59 @@ export async function handleContent(request, url, env, ctx) {
     });
   }
 
+  // Profil einer Person (nach GD-Namen): Rang, Punkte, erstellte Level, Completions
+  const profM = path.match(/^\/profiles\/(.{1,60})$/);
+  if (profM && method === "GET") {
+    const name = decodeURIComponent(profM[1]).trim();
+    const key = name.toLowerCase();
+    const ranking = await buildRanking(env);
+    const me = ranking.find((p) => p.name.toLowerCase() === key) || null;
+    const [levels, lists] = await Promise.all([
+      db(env, "GET", "levels?select=id,list_id,position,name,creator,creators,verifier,requirement"),
+      db(env, "GET", "lists?select=id,name,slug,max_places,scoring"),
+    ]);
+    const listById = Object.fromEntries((lists || []).map((x) => [x.id, x]));
+    const created = (levels || []).filter((lv) => {
+      const names = `${lv.creator || ""}, ${lv.creators || ""}`.toLowerCase().replace(/ and more/g, "");
+      return names.split(",").map((s) => s.trim()).includes(key);
+    }).map((lv) => ({
+      id: lv.id, name: lv.name, position: lv.position, listName: listById[lv.list_id]?.name || "",
+      listSlug: listById[lv.list_id]?.slug || "", verifier: lv.verifier,
+      points: scoreFor(listById[lv.list_id], lv.position, 100, lv.requirement),
+    })).sort((x, y) => (x.position || 9999) - (y.position || 9999));
+    if (!me && !created.length) return json({ error: "not_found" }, 404);
+    let completions = [];
+    if (me) {
+      const recs = (await db(env, "GET", `records?submitted_by=eq.${encodeURIComponent(me.discordId)}&status=eq.approved&select=level_id,percent`)) || [];
+      const best = new Map();
+      recs.forEach((r) => best.set(r.level_id, Math.max(best.get(r.level_id) || 0, r.percent ?? 100)));
+      const levelById = Object.fromEntries((levels || []).map((x) => [x.id, x]));
+      completions = [...best.entries()].map(([lid, pct]) => {
+        const lv = levelById[lid];
+        if (!lv) return null;
+        return {
+          levelId: lid, name: lv.name, position: lv.position, listName: listById[lv.list_id]?.name || "",
+          percent: pct, points: scoreFor(listById[lv.list_id], lv.position, pct, lv.requirement),
+        };
+      }).filter(Boolean).sort((x, y) => (x.position || 9999) - (y.position || 9999));
+    }
+    return json({
+      name: me ? me.name : name,
+      avatar: me ? me.avatar : null,
+      rank: me ? me.rank : null,
+      tied: me ? me.tied : false,
+      points: me ? me.points : 0,
+      completionCount: completions.length,
+      createdCount: created.length,
+      completions,
+      created,
+    });
+  }
+
   // Rangliste: nur verifizierte GD-Accounts, die mindestens ein Listen-Level geschafft haben.
   // Punkte = Summe der Punkte je Level (jedes Level zählt einmal). Gleiche Punkte = gleicher Platz.
   if (path === "/stats" && method === "GET") {
-    const [links, users, levels, lists, records] = await Promise.all([
-      db(env, "GET", "gd_links?select=discord_id,gd_name"),
-      db(env, "GET", "users?select=discord_id,avatar"),
-      db(env, "GET", "levels?select=id,list_id,position,creator,requirement"),
-      db(env, "GET", "lists?select=id,max_places,scoring"),
-      db(env, "GET", "records?status=eq.approved&select=level_id,submitted_by,percent"),
-    ]);
-    const gdByDiscord = new Map((links || []).map((l) => [l.discord_id, l.gd_name]));
-    const avatarByDiscord = new Map((users || []).map((u) => [u.discord_id, u.avatar]));
-    const listById = Object.fromEntries((lists || []).map((l) => [l.id, l]));
-    const levelById = Object.fromEntries((levels || []).map((l) => [l.id, l]));
-
-    // pro Discord-Konto: welche Level geschafft wurden (jedes Level nur einmal)
-    const done = new Map();
-    for (const r of records || []) {
-      const gd = gdByDiscord.get(r.submitted_by);
-      const lv = levelById[r.level_id];
-      if (!gd || !lv) continue;
-      if (!done.has(r.submitted_by)) done.set(r.submitted_by, new Map());
-      const m2 = done.get(r.submitted_by);
-      m2.set(r.level_id, Math.max(m2.get(r.level_id) || 0, r.percent ?? 100));
-    }
-
-    const rows = [];
-    for (const [discordId, levelMap] of done) {
-      const gd = gdByDiscord.get(discordId);
-      let points = 0;
-      for (const [lid, pct] of levelMap) {
-        const lv = levelById[lid];
-        points += scoreFor(listById[lv.list_id], lv.position, pct, lv.requirement);
-      }
-      const levelIds = new Set(levelMap.keys());
-      const created = (levels || []).filter((lv) => lv.creator && lv.creator.trim().toLowerCase() === gd.trim().toLowerCase()).length;
-      rows.push({
-        discordId,
-        name: gd,
-        avatar: avatarByDiscord.get(discordId)
-          ? `https://cdn.discordapp.com/avatars/${discordId}/${avatarByDiscord.get(discordId)}.png?size=64`
-          : null,
-        points: Math.round(points * 100) / 100,
-        completions: levelIds.size,
-        created,
-      });
-    }
-
-    // Community Beats: Punkte werden gleichmäßig auf alle Mitwirkenden verteilt.
-    // Gezählt werden nur Mitwirkende, die einen GD-Account verknüpft haben.
-    const beatLevels = (levels || []).filter((lv) => lv.is_beat);
-    if (beatLevels.length) {
-      const beatIds = beatLevels.map((lv) => lv.id).join(",");
-      const contribs = (await db(env, "GET", `level_contributors?level_id=in.(${beatIds})&select=level_id,discord_id,name`)) || [];
-      // Mitwirkende werden über ihren GD-Namen mit einem verknüpften Discord-Konto verbunden
-      const discordByGdName = new Map((links || []).map((l2) => [String(l2.gd_name).toLowerCase(), l2.discord_id]));
-      contribs.forEach((c) => {
-        if (!c.discord_id) c.discord_id = discordByGdName.get(String(c.name).toLowerCase()) || null;
-      });
-      const byLevel = new Map();
-      contribs.forEach((c) => {
-        if (!byLevel.has(c.level_id)) byLevel.set(c.level_id, []);
-        byLevel.get(c.level_id).push(c);
-      });
-      for (const lv of beatLevels) {
-        const list2 = byLevel.get(lv.id) || [];
-        if (!list2.length) continue;
-        const share = pointsFor(lv.position, listById[lv.list_id]?.max_places) / list2.length;
-        for (const c of list2) {
-          const gd = c.discord_id && gdByDiscord.get(c.discord_id);
-          if (!gd) continue;
-          let row = rows.find((r) => r.discordId === c.discord_id);
-          if (!row) {
-            row = { discordId: c.discord_id, name: gd, avatar: avatarByDiscord.get(c.discord_id)
-              ? `https://cdn.discordapp.com/avatars/${c.discord_id}/${avatarByDiscord.get(c.discord_id)}.png?size=64` : null,
-              points: 0, completions: 0, created: 0 };
-            rows.push(row);
-          }
-          row.points += share;
-          row.completions += 1;
-        }
-      }
-      rows.forEach((r) => { r.points = Math.round(r.points * 100) / 100; });
-    }
-
-    rows.sort((x, y) => y.points - x.points || y.completions - x.completions || x.name.localeCompare(y.name, "de"));
-    // Gleichstand: gleiche Punkte -> gleicher Platz (1, 2, 2, 4 ...)
-    let rank = 0;
-    let prev = null;
-    const players = rows.map((p, i) => {
-      if (prev === null || p.points !== prev) rank = i + 1;
-      prev = p.points;
-      return { ...p, rank };
-    });
-    players.forEach((p) => {
-      p.tied = players.filter((q) => q.rank === p.rank).length > 1;
-    });
-    return json({ players: players.slice(0, 300) });
+    return json({ players: await buildRanking(env) });
   }
 
   // Sync-Empfang vom GitHub-Ablauf (Authentifizierung über geheimen Schlüssel, nicht über Login)

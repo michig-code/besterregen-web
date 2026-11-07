@@ -683,3 +683,17 @@ details.more .info-table { margin-top: 10px; }
 .consent.gone { opacity: 0; transform: translateX(-50%) translateY(12px); }
 .consent-actions { display: flex; gap: 8px; flex: none; }
 .consent .chip-btn { padding: 7px 12px; font-size: .82rem; }
+
+/* ---------- Profil ---------- */
+.profile-hero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.profile-avatar { border-radius: 50%; border: 3px solid var(--purple); box-shadow: 0 0 24px rgba(139,92,246,.4); }
+.profile-hero h1 { margin: 0 0 6px; }
+.profile-stats { display: flex; gap: 22px; margin-top: 12px; flex-wrap: wrap; }
+.profile-stats div { display: flex; flex-direction: column; }
+.profile-stats strong { font-size: 1.4rem; }
+.profile-stats small { color: var(--muted); }
+.link-row { color: var(--text); text-decoration: none; justify-content: space-between; gap: 12px; }
+.link-row:hover { border-color: var(--green); color: var(--text); }
+.link-row small { color: var(--muted); }
+.type-link { color: var(--cyan); text-decoration: none; }
+.type-link:hover { color: var(--green); }
