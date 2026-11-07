@@ -4,8 +4,8 @@
   const DICT = {
     // Navigation & Footer
     "Listen": "Lists", "Statistiken": "Statistics", "Regeln": "Rules", "Einsenden": "Submit",
-    "Support": "Support", "Discord": "Discord", "Discord beitreten": "Join Discord", "Datenschutz": "Privacy",
-    "Impressum": "Legal notice", "Verwaltung": "Admin", "Moderation": "Moderation", "Rollen & Mitglieder": "Roles & members",
+    "Support": "Support", "Discord": "Discord", "Discord beitreten": "Join Discord", "Datenschutz": "Privacy Policy",
+    "Verwaltung": "Admin", "Moderation": "Moderation", "Rollen & Mitglieder": "Roles & members",
     "Einstellungen": "Settings", "Abmelden": "Log out", "Anmelden": "Log in", "Mit Discord anmelden": "Log in with Discord",
     "Zur Anmeldung": "Go to login", "Zur Rangliste": "Go to the ranking", "Benachrichtigungen": "Notifications",
     "Noch keine Benachrichtigungen.": "No notifications yet.", "Alle als gelesen": "Mark all as read",
