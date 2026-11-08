@@ -44,7 +44,7 @@ export default {
         const r = await handleNotifications(request, url, env, { getSession, json, cors });
         if (r) return r;
       }
-      if (/^\/(lists|levels|submit|upload|mod|sync)(\/|$)/.test(url.pathname)) {
+      if (/^\/(lists|levels|submit|upload|mod|sync|stats|profiles|members)(\/|$)/.test(url.pathname)) {
         const r = await handleContent(request, url, env, { getSession, json, cors });
         if (r) return r;
       }
